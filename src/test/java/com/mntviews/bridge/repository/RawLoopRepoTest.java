@@ -4,6 +4,7 @@ import com.mntviews.bridge.common.PostgresContainerTest;
 import com.mntviews.bridge.model.MetaData;
 import com.mntviews.bridge.repository.impl.MetaDataRepoImpl;
 import com.mntviews.bridge.repository.impl.RawLoopRepoImpl;
+import com.mntviews.bridge.service.BridgeContext;
 import org.junit.jupiter.api.Test;
 
 import java.sql.SQLException;
@@ -12,14 +13,13 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 public class RawLoopRepoTest  extends PostgresContainerTest {
-    private MetaDataRepo metaDataRepo;
-    private RawLoopRepo rawLoopRepo;
 
     @Test
     public void rowLoopTest() throws SQLException {
-        metaDataRepo = new MetaDataRepoImpl(jdbcTemplate);
-        rawLoopRepo = new RawLoopRepoImpl(jdbcTemplate);
-        MetaData metaData = metaDataRepo.findMetaData(connection, GROUP_TAG, META_TAG);
+
+        MetaDataRepo metaDataRepo = new MetaDataRepoImpl();
+        RawLoopRepo rawLoopRepo = new RawLoopRepoImpl();
+        MetaData metaData = metaDataRepo.findMetaData(connection, GROUP_TAG, META_TAG, BridgeContext.DEFAULT_SCHEMA_NAME);
         assertNotNull(metaData);
 
         jdbcTemplate.update("DO $$" +

@@ -1,4 +1,4 @@
-create function bridge.fnc_raw_loop(a_meta_data bridge.t_meta_data) returns refcursor
+create function fnc_raw_loop(a_meta_data t_meta_data) returns refcursor
     language plpgsql
 as
 $$

@@ -1,26 +1,33 @@
 plugins {
     id 'java'
+    id 'maven-publish'
 }
 
 group 'com.mntviews'
 version '1.0-SNAPSHOT'
 
 repositories {
+    mavenLocal()
     mavenCentral()
 }
 
 dependencies {
     testImplementation 'org.junit.jupiter:junit-jupiter-api:5.6.2'
     testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.6.2'
+
+
     testImplementation 'org.mockito:mockito-junit-jupiter:3.3.3'
-
-
     testImplementation 'org.testcontainers:testcontainers:1.15.2'
     testImplementation 'org.testcontainers:junit-jupiter:1.15.2'
     testImplementation 'org.testcontainers:postgresql:1.15.2'
-    testImplementation 'org.flywaydb:flyway-core:6.5.1'
-    // testImplementation 'org.postgresql:postgresql:42.2.14'
-    implementation 'org.springframework:spring-jdbc:5.3.5'
+    testImplementation 'org.flywaydb:flyway-core:7.8.2'
+    testImplementation 'org.springframework:spring-jdbc:5.3.5'
+    testImplementation 'org.mockito:mockito-core:3.9.0'
+    testImplementation 'org.mockito:mockito-junit-jupiter:3.9.0'
+
+
+    compile "org.flywaydb:flyway-core:7.8.2"
+
     implementation 'org.slf4j:slf4j-nop:1.7.25'
     implementation 'org.postgresql:postgresql:42.2.19'
     compileOnly 'org.projectlombok:lombok:1.18.20'
@@ -31,4 +38,13 @@ dependencies {
 
 test {
     useJUnitPlatform()
+}
+
+
+publishing {
+    publications {
+        maven(MavenPublication) {
+            from components.java
+        }
+    }
 }

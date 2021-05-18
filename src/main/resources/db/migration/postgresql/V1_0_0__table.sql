@@ -1,6 +1,5 @@
-create schema bridge;
 
-create table bridge.bridge_group
+create table bridge_group
 (
     id          bigserial not null
         constraint bridge_group_pk
@@ -11,9 +10,9 @@ create table bridge.bridge_group
 );
 
 create unique index bridge_group_tag_uindex
-    on bridge.bridge_group (tag);
+    on bridge_group (tag);
 
-create table bridge.bridge_meta
+create table bridge_meta
 (
     id       bigserial not null
         constraint bridge_meta_pk
@@ -22,7 +21,7 @@ create table bridge.bridge_meta
     note     text,
     group_id bigint    not null
         constraint bridge_meta_group_fk
-            references bridge.bridge_group,
+            references bridge_group,
     constraint bridge_meta_uk_1
         unique (tag, group_id)
 );

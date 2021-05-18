@@ -1,11 +1,11 @@
-create procedure bridge.prc_pre_process(IN a_raw_id bigint, IN a_raw_full_name TEXT,IN a_buf_full_name TEXT,a_prc_exec_full_name TEXT, INOUT a_processed_status integer, INOUT a_error_message text)
+create procedure prc_pre_process(IN a_raw_id bigint, IN a_raw_full_name TEXT,IN a_buf_full_name TEXT,a_prc_exec_full_name TEXT, INOUT a_processed_status integer, INOUT a_error_message text)
     language plpgsql
 as
 $$
 declare
     l_action_tag   text;
-    l_buf_model    bridge.fbi_buf_model;
-    l_raw_model    bridge.fbi_raw_model;
+    l_buf_model    fbi_buf_model;
+    l_raw_model    fbi_raw_model;
     l_buf_id       bigint;
     l_update_count integer;
 begin
@@ -58,7 +58,7 @@ exception
 end;
 $$;
 
-create procedure bridge.prc_post_process(IN a_raw_id bigint,IN a_raw_full_name text,IN a_processed_status integer,IN a_error_message text)
+create procedure prc_post_process(IN a_raw_id bigint,IN a_raw_full_name text,IN a_processed_status integer,IN a_error_message text)
     language plpgsql
 as
 $$
@@ -70,26 +70,26 @@ begin
 end ;
 $$;
 
-create procedure bridge.prc_start_task(a_group_tag text, a_meta_tag text, a_raw_id bigint DEFAULT NULL::bigint)
+create procedure prc_start_task(a_group_tag text, a_meta_tag text, a_raw_id bigint DEFAULT NULL::bigint)
     language plpgsql
 as
 $$
 declare
-    l_meta_data        bridge.t_meta_data;
+    l_meta_data        t_meta_data;
     c_raw_rec          record;
     l_count            integer := 0;
     l_error_message    text;
     l_processed_status integer;
 begin
 
-    l_meta_data := bridge.fnc_get_meta_data(a_group_tag, a_meta_tag);
+    l_meta_data := fnc_get_meta_data(a_group_tag, a_meta_tag);
 
     for c_raw_rec in execute l_meta_data.raw_loop_query
         loop
             /* process the result row */
-            call bridge.prc_pre_process(c_raw_rec.id, l_meta_data, l_processed_status, l_error_message);
+            call prc_pre_process(c_raw_rec.id, l_meta_data, l_processed_status, l_error_message);
 
-            call bridge.prc_post_process(c_raw_rec.id, l_meta_data, l_processed_status, l_error_message);
+            call prc_post_process(c_raw_rec.id, l_meta_data, l_processed_status, l_error_message);
 
             if l_processed_status <> 0 then
                 l_count := l_count + 1;

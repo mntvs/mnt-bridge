@@ -1,4 +1,4 @@
-create type bridge.t_meta_data as
+create type t_meta_data as
 (
     group_id           bigint,
     meta_id            bigint,

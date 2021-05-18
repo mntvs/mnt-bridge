@@ -1,9 +1,11 @@
 package com.mntviews.bridge.common;
 
+import com.mntviews.bridge.model.ConnectionData;
+import com.mntviews.bridge.service.BridgeContext;
+import com.mntviews.bridge.service.FlyWayService;
+import com.mntviews.bridge.service.impl.FlyWayServicePostgresqlImpl;
 import org.flywaydb.core.Flyway;
 import org.junit.jupiter.api.BeforeEach;
-import org.postgresql.ds.PGConnectionPoolDataSource;
-import org.postgresql.ds.PGPoolingDataSource;
 import org.postgresql.ds.PGSimpleDataSource;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
@@ -24,7 +26,7 @@ public class PostgresContainerTest {
     public final static String SCHEMA_NAME = "TEST_SCHEMA";
 
     public final static String DB_NAME = "mnt";
-    public final static String USER_NAME = "mnt";
+    public final static String USER_NAME = BridgeContext.DEFAULT_SCHEMA_NAME;
     public final static String USER_PASSWORD = "mnt";
 
     public final static Integer ITEMS_COUNT = 10;
@@ -34,6 +36,8 @@ public class PostgresContainerTest {
     protected JdbcTemplate jdbcTemplate;
 
     protected Connection connection;
+
+    protected ConnectionData connectionData;
 
     @Container
     protected PostgreSQLContainer postgresqlContainer = new PostgreSQLContainer("postgres:12")
@@ -46,16 +50,15 @@ public class PostgresContainerTest {
      */
     @BeforeEach
     protected void init() throws SQLException {
-        Flyway.configure()
-                .dataSource(postgresqlContainer.getJdbcUrl(), postgresqlContainer.getUsername(), postgresqlContainer.getPassword()).locations("classpath:db/migration")
-                .load()
-                .migrate();
+
+        FlyWayService flyWayService = new FlyWayServicePostgresqlImpl();
+        flyWayService.migrate(new ConnectionData(postgresqlContainer.getJdbcUrl(), postgresqlContainer.getUsername(), postgresqlContainer.getPassword()));
 
         String url = "jdbc:postgresql://localhost/test";
         Properties props = new Properties();
-        props.setProperty("user",postgresqlContainer.getUsername());
-        props.setProperty("password",postgresqlContainer.getPassword());
-        props.setProperty("escapeSyntaxCallMode","callIfNoReturn");
+        props.setProperty("user", postgresqlContainer.getUsername());
+        props.setProperty("password", postgresqlContainer.getPassword());
+        props.setProperty("escapeSyntaxCallMode", "callIfNoReturn");
         connection = DriverManager.getConnection(postgresqlContainer.getJdbcUrl(), props);
         connection.setAutoCommit(false);
 
@@ -65,6 +68,7 @@ public class PostgresContainerTest {
         dataSource.setPassword(postgresqlContainer.getPassword());
         dataSource.setProperty("escapeSyntaxCallMode", "callIfNoReturn");
 //dataSource.setDefaultAutoCommit(false);
+        connectionData = new ConnectionData(postgresqlContainer.getJdbcUrl(), USER_NAME, USER_PASSWORD);
 
         jdbcTemplate = new JdbcTemplate((DataSource) dataSource);
 
@@ -72,16 +76,15 @@ public class PostgresContainerTest {
 
         KeyHolder holder = new GeneratedKeyHolder();
         jdbcTemplate.update(c -> {
-            PreparedStatement ps = c.prepareStatement("insert into bridge.bridge_group (tag,schema_name) values (?,?) returning id", Statement.RETURN_GENERATED_KEYS);
+            PreparedStatement ps = c.prepareStatement(String.format("insert into %s.bridge_group (tag,schema_name) values (?,?) returning id", BridgeContext.DEFAULT_SCHEMA_NAME), Statement.RETURN_GENERATED_KEYS);
             ps.setString(1, GROUP_TAG);
             ps.setString(2, SCHEMA_NAME);
             return ps;
         }, holder);
 
-        jdbcTemplate.update("insert into bridge.bridge_meta (tag,group_id) values (?,?)", META_TAG, Objects.requireNonNull(holder.getKey()).longValue());
+        jdbcTemplate.update(String.format("insert into %s.bridge_meta (tag,group_id) values (?,?)", BridgeContext.DEFAULT_SCHEMA_NAME), META_TAG, Objects.requireNonNull(holder.getKey()).longValue());
 
-        jdbcTemplate.update("call bridge.prc_create_meta_by_tag(?,?)", GROUP_TAG, META_TAG);
-
+        jdbcTemplate.update(String.format("call %s.prc_create_meta_by_tag(?,?)", BridgeContext.DEFAULT_SCHEMA_NAME), GROUP_TAG, META_TAG);
 
     }
 
