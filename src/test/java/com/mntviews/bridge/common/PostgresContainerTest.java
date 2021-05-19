@@ -1,10 +1,10 @@
 package com.mntviews.bridge.common;
 
 import com.mntviews.bridge.model.ConnectionData;
+import com.mntviews.bridge.repository.impl.MetaInitPostgresqlRepoImpl;
 import com.mntviews.bridge.service.BridgeContext;
-import com.mntviews.bridge.service.FlyWayService;
-import com.mntviews.bridge.service.impl.FlyWayServicePostgresqlImpl;
-import org.flywaydb.core.Flyway;
+import com.mntviews.bridge.service.DataBaseInitService;
+import com.mntviews.bridge.service.impl.DataBaseInitPostgresqlServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.postgresql.ds.PGSimpleDataSource;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -51,8 +51,8 @@ public class PostgresContainerTest {
     @BeforeEach
     protected void init() throws SQLException {
 
-        FlyWayService flyWayService = new FlyWayServicePostgresqlImpl();
-        flyWayService.migrate(new ConnectionData(postgresqlContainer.getJdbcUrl(), postgresqlContainer.getUsername(), postgresqlContainer.getPassword()));
+        DataBaseInitService dataBaseInitService = new DataBaseInitPostgresqlServiceImpl(new MetaInitPostgresqlRepoImpl());
+        dataBaseInitService.migrate(new ConnectionData(postgresqlContainer.getJdbcUrl(), postgresqlContainer.getUsername(), postgresqlContainer.getPassword(),BridgeContext.DEFAULT_SCHEMA_NAME));
 
         String url = "jdbc:postgresql://localhost/test";
         Properties props = new Properties();
@@ -68,7 +68,7 @@ public class PostgresContainerTest {
         dataSource.setPassword(postgresqlContainer.getPassword());
         dataSource.setProperty("escapeSyntaxCallMode", "callIfNoReturn");
 //dataSource.setDefaultAutoCommit(false);
-        connectionData = new ConnectionData(postgresqlContainer.getJdbcUrl(), USER_NAME, USER_PASSWORD);
+        connectionData = new ConnectionData(postgresqlContainer.getJdbcUrl(), USER_NAME, USER_PASSWORD,BridgeContext.DEFAULT_SCHEMA_NAME);
 
         jdbcTemplate = new JdbcTemplate((DataSource) dataSource);
 

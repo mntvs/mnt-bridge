@@ -1,13 +1,16 @@
 package com.mntviews.bridge.repository.impl;
 
+import com.mntviews.bridge.model.ConnectionData;
+import com.mntviews.bridge.model.MetaData;
 import com.mntviews.bridge.repository.MetaInitRepo;
 import com.mntviews.bridge.repository.exception.MetaInitException;
 import com.mntviews.bridge.service.BridgeContext;
+import com.mntviews.bridge.service.exception.BridgeServiceException;
 
 import java.sql.*;
-import java.util.Objects;
+import java.util.Properties;
 
-public class MetaInitRepoImpl implements MetaInitRepo {
+public class MetaInitPostgresqlRepoImpl implements MetaInitRepo {
     @Override
     public void init(Connection connection, String groupTag, String metaTag, String schemaName, String schemaMetaName) {
 
@@ -49,6 +52,21 @@ public class MetaInitRepoImpl implements MetaInitRepo {
             connection.commit();
         } catch (SQLException e) {
             throw new MetaInitException(e);
+        }
+    }
+
+    @Override
+    public Connection getConnection(ConnectionData connectionData) {
+        Properties props = new Properties();
+        props.setProperty("user", connectionData.getUserName());
+        props.setProperty("password", connectionData.getPassword());
+        props.setProperty("escapeSyntaxCallMode", "callIfNoReturn");
+        try {
+            Connection connection = DriverManager.getConnection(connectionData.getUrl(), props);
+            connection.setAutoCommit(false);
+            return  connection;
+        } catch (SQLException e) {
+            throw new BridgeServiceException(e);
         }
     }
 }

@@ -8,9 +8,9 @@ import java.sql.Connection;
 
 public interface RawLoopRepo {
 
-    void rawLoop(Connection connection, MetaData metaData, BridgeProcessing bridgeProcessing);
+    void rawLoop(Connection connection, MetaData metaData, BridgeProcessing bridgeProcessing, String schemaName);
 
-    void preProcess(Connection connection,ProcessData processData);
+    void preProcess(Connection connection,ProcessData processData, String schemaName);
 
-    void postProcess(Connection connection,ProcessData processData);
+    void postProcess(Connection connection,ProcessData processData, String schemaName);
 }

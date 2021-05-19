@@ -16,6 +16,6 @@ public class BridgeServiceTest extends PostgresContainerTest {
         MetaDataRepo metaDataRepo = new MetaDataRepoImpl();
         RawLoopRepo rawLoopRepo = new RawLoopRepoImpl();
         BridgeService bridgeService = new BridgeServiceImpl(rawLoopRepo, metaDataRepo);
-        bridgeService.execute(GROUP_TAG, META_TAG, new ConnectionData(postgresqlContainer.getJdbcUrl(), USER_NAME, USER_PASSWORD), null, BridgeContext.DEFAULT_SCHEMA_NAME);
+        bridgeService.execute(GROUP_TAG, META_TAG,connection, null, BridgeContext.DEFAULT_SCHEMA_NAME);
     }
 }

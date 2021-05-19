@@ -87,9 +87,9 @@ begin
     for c_raw_rec in execute l_meta_data.raw_loop_query
         loop
             /* process the result row */
-            call prc_pre_process(c_raw_rec.id, l_meta_data, l_processed_status, l_error_message);
+            call prc_pre_process(c_raw_rec.id, l_meta_data.raw_full_name,l_meta_data.buf_full_name,l_meta_data.prc_exec_full_name, l_processed_status, l_error_message);
 
-            call prc_post_process(c_raw_rec.id, l_meta_data, l_processed_status, l_error_message);
+            call prc_post_process(c_raw_rec.id, l_meta_data.raw_full_name, l_processed_status, l_error_message);
 
             if l_processed_status <> 0 then
                 l_count := l_count + 1;

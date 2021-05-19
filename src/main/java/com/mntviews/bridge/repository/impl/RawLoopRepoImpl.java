@@ -17,7 +17,7 @@ public class RawLoopRepoImpl implements RawLoopRepo {
 
 
     @Override
-    public void rawLoop(Connection connection, MetaData metaData, BridgeProcessing bridgeProcessing) {
+    public void rawLoop(Connection connection, MetaData metaData, BridgeProcessing bridgeProcessing, String schemaName) {
         AtomicInteger count = new AtomicInteger();
 
         try (Statement stmt = connection.createStatement();) {
@@ -30,10 +30,10 @@ public class RawLoopRepoImpl implements RawLoopRepo {
                     processData.setMetaData(metaData);
                     processData.setProcessedStatus(processedStatus);
                     processData.setErrorMessage(errorMessage);
-                    preProcess(connection, processData);
+                    preProcess(connection, processData, schemaName);
                     if (bridgeProcessing != null)
                         bridgeProcessing.process(connection, processData);
-                    postProcess(connection, processData);
+                    postProcess(connection, processData, schemaName);
                     connection.commit();
                 }
             }
@@ -44,9 +44,9 @@ public class RawLoopRepoImpl implements RawLoopRepo {
 
 
     @Override
-    public void preProcess(Connection connection, ProcessData processData) {
+    public void preProcess(Connection connection, ProcessData processData, String schemaName) {
 
-        try (CallableStatement prcPreProcess = connection.prepareCall("{ call bridge.prc_pre_process(?,?,?,?,?,?) }");) {
+        try (CallableStatement prcPreProcess = connection.prepareCall(String.format("{ call %s.prc_pre_process(?,?,?,?,?,?) }", schemaName))) {
 
             prcPreProcess.setLong(1, processData.getRawId());
             prcPreProcess.setString(2, processData.getMetaData().getRawFullName());
@@ -68,9 +68,9 @@ public class RawLoopRepoImpl implements RawLoopRepo {
     }
 
     @Override
-    public void postProcess(Connection connection, ProcessData processData) {
+    public void postProcess(Connection connection, ProcessData processData, String schemaName) {
 
-        try (CallableStatement prcPostProcess = connection.prepareCall("{ call bridge.prc_post_process(?,?,?,?) }");) {
+        try (CallableStatement prcPostProcess = connection.prepareCall(String.format("{ call %s.prc_post_process(?,?,?,?) }", schemaName))) {
 
             prcPostProcess.setLong(1, processData.getRawId());
             prcPostProcess.setString(2, processData.getMetaData().getRawFullName());

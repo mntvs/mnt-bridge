@@ -21,18 +21,8 @@ public class BridgeServiceImpl implements BridgeService {
     private final MetaDataRepo metaDataRepo;
 
     @Override
-    public void execute(String groupTag, String metaTag, ConnectionData connectionData, BridgeProcessing bridgeProcessing,String schemaName) {
-
-        Properties props = new Properties();
-        props.setProperty("user", connectionData.getUserName());
-        props.setProperty("password", connectionData.getPassword());
-        props.setProperty("escapeSyntaxCallMode", "callIfNoReturn");
-        try (Connection connection = DriverManager.getConnection(connectionData.getUrl(), props)) {
-            connection.setAutoCommit(false);
+    public void execute(String groupTag, String metaTag, Connection connection, BridgeProcessing bridgeProcessing, String schemaName) {
             MetaData metaData = metaDataRepo.findMetaData(connection, groupTag, metaTag, schemaName);
-            rawLoopRepo.rawLoop(connection, metaData, bridgeProcessing);
-        } catch (SQLException e) {
-            throw new BridgeServiceException(e);
-        }
+            rawLoopRepo.rawLoop(connection, metaData, bridgeProcessing, schemaName);
     }
 }

@@ -1,6 +1,7 @@
 package com.mntviews.bridge.db;
 
 import com.mntviews.bridge.common.PostgresContainerTest;
+import com.mntviews.bridge.service.BridgeContext;
 import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.Executors;
@@ -29,7 +30,7 @@ public class MetaDataTest extends PostgresContainerTest {
 
         Integer notProcessedCount = jdbcTemplate.queryForObject("select count(*) from " + SCHEMA_NAME + ".fbi_raw_" + META_TAG + " where s_status=0", Integer.class);
         assertEquals(ITEMS_COUNT, notProcessedCount, "not processed count");
-        jdbcTemplate.update("call bridge.prc_start_task(?,?)", GROUP_TAG, META_TAG);
+        jdbcTemplate.update(String.format("call %s.prc_start_task(?,?)", BridgeContext.DEFAULT_SCHEMA_NAME), GROUP_TAG, META_TAG);
         Integer successCount = jdbcTemplate.queryForObject("select count(*) from " + SCHEMA_NAME + ".fbi_raw_" + META_TAG + " where s_status=1", Integer.class);
         assertEquals(ITEMS_COUNT, successCount, "Success count raw");
         Integer successCountBuf = jdbcTemplate.queryForObject("select count(*) from " + SCHEMA_NAME + ".fbi_buf_" + META_TAG, Integer.class);
@@ -50,7 +51,7 @@ public class MetaDataTest extends PostgresContainerTest {
                 "$$");
 
         /* First pass */
-        jdbcTemplate.update("call bridge.prc_start_task(?,?)", GROUP_TAG, META_TAG);
+        jdbcTemplate.update(String.format("call %s.prc_start_task(?,?)", BridgeContext.DEFAULT_SCHEMA_NAME), GROUP_TAG, META_TAG);
         Integer errorCount = jdbcTemplate.queryForObject("select count(*) from " + SCHEMA_NAME + ".fbi_raw_" + META_TAG + " where s_status=-3", Integer.class);
         assertEquals(ITEMS_COUNT, errorCount, "Error count raw");
 
@@ -58,7 +59,7 @@ public class MetaDataTest extends PostgresContainerTest {
         assertEquals(0, errorCountBuf, "Error count buf");
 
         /* Second pass */
-        jdbcTemplate.update("call bridge.prc_start_task(?,?)", GROUP_TAG, META_TAG);
+        jdbcTemplate.update(String.format("call %s.prc_start_task(?,?)", BridgeContext.DEFAULT_SCHEMA_NAME), GROUP_TAG, META_TAG);
         Integer errorCounter = jdbcTemplate.queryForObject("select count(*) from " + SCHEMA_NAME + ".fbi_raw_" + META_TAG + " where s_status=-3 and s_counter=2", Integer.class);
         assertEquals(ITEMS_COUNT, errorCounter, "Error counter should be equal 2 ");
 
@@ -76,7 +77,7 @@ public class MetaDataTest extends PostgresContainerTest {
                 "END;" +
                 "$$");
 
-        jdbcTemplate.update("call bridge.prc_start_task(?,?)", GROUP_TAG, META_TAG);
+        jdbcTemplate.update(String.format("call %s.prc_start_task(?,?)", BridgeContext.DEFAULT_SCHEMA_NAME), GROUP_TAG, META_TAG);
         Integer successCount = jdbcTemplate.queryForObject("select count(*) from " + SCHEMA_NAME + ".fbi_raw_" + META_TAG + " where s_status=1", Integer.class);
         assertEquals(ITEMS_COUNT, successCount, "Success count raw");
         Integer errorCount = jdbcTemplate.queryForObject("select count(*) from " + SCHEMA_NAME + ".fbi_raw_" + META_TAG + " where s_status=-3", Integer.class);
@@ -103,7 +104,7 @@ public class MetaDataTest extends PostgresContainerTest {
         Runnable startTaskProcedure = () -> {
             int taskNum = num.getAndIncrement();
             System.out.println("Start task " + taskNum);
-            jdbcTemplate.update("call bridge.prc_start_task(?,?)", GROUP_TAG, META_TAG);
+            jdbcTemplate.update(String.format("call %s.prc_start_task(?,?)", BridgeContext.DEFAULT_SCHEMA_NAME), GROUP_TAG, META_TAG);
             System.out.println("Finish task " + taskNum);
         };
 

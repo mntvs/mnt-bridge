@@ -12,7 +12,7 @@ import java.sql.SQLException;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
-public class RawLoopRepoTest  extends PostgresContainerTest {
+public class RawLoopRepoTest extends PostgresContainerTest {
 
     @Test
     public void rowLoopTest() throws SQLException {
@@ -32,7 +32,7 @@ public class RawLoopRepoTest  extends PostgresContainerTest {
                 "$$");
 
         //rawLoopRepo.rawLoop(jdbcTemplate.getDataSource().getConnection(),metaData);
-        rawLoopRepo.rawLoop(connection,metaData,null);
+        rawLoopRepo.rawLoop(connection, metaData, null, BridgeContext.DEFAULT_SCHEMA_NAME);
         Integer successCount = jdbcTemplate.queryForObject("select count(*) from " + SCHEMA_NAME + ".fbi_raw_" + META_TAG + " where s_status=1", Integer.class);
         assertEquals(ITEMS_COUNT, successCount, "Success count raw");
         Integer successCountBuf = jdbcTemplate.queryForObject("select count(*) from " + SCHEMA_NAME + ".fbi_buf_" + META_TAG, Integer.class);

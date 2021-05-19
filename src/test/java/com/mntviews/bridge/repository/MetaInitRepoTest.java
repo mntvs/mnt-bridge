@@ -1,7 +1,7 @@
 package com.mntviews.bridge.repository;
 
 import com.mntviews.bridge.common.PostgresContainerTest;
-import com.mntviews.bridge.repository.impl.MetaInitRepoImpl;
+import com.mntviews.bridge.repository.impl.MetaInitPostgresqlRepoImpl;
 import com.mntviews.bridge.service.BridgeContext;
 import org.junit.jupiter.api.Test;
 
@@ -16,7 +16,7 @@ public class MetaInitRepoTest extends PostgresContainerTest {
 
     @Test
     public void initTest() {
-        metaInitRepo = new MetaInitRepoImpl();
+        metaInitRepo = new MetaInitPostgresqlRepoImpl();
         metaInitRepo.init(connection, GROUP_TAG, META_TAG, SCHEMA_NAME, BridgeContext.DEFAULT_SCHEMA_NAME);
         Integer count = jdbcTemplate.queryForObject(String.format("select count(*) c from %s.bridge_group where tag=?", BridgeContext.DEFAULT_SCHEMA_NAME), Integer.class, GROUP_TAG);
         assertEquals(count, 1, String.format("Group %s should be created", GROUP_TAG));
