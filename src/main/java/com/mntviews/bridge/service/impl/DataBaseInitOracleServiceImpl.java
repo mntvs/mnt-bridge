@@ -7,6 +7,11 @@ import java.sql.Connection;
 
 public class DataBaseInitOracleServiceImpl implements DataBaseInitService {
     @Override
+    public void migrate(ConnectionData connectionData, Boolean isClean) {
+
+    }
+
+    @Override
     public void migrate(ConnectionData connectionData) {
 
     }

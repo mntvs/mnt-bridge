@@ -18,8 +18,13 @@ public enum DataBaseType implements DataBaseInitService {
     }
 
     @Override
+    public void migrate(ConnectionData connectionData, Boolean isClean) {
+        dataBaseInitService.migrate(connectionData, isClean);
+    }
+
+    @Override
     public void migrate(ConnectionData connectionData) {
-        dataBaseInitService.migrate(connectionData);
+        migrate(connectionData, false);
     }
 
     @Override

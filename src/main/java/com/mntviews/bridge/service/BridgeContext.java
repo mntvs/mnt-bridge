@@ -8,6 +8,7 @@ import com.mntviews.bridge.repository.impl.RawLoopRepoImpl;
 import com.mntviews.bridge.service.impl.BridgeServiceImpl;
 import com.mntviews.bridge.service.impl.DataBaseInitPostgresqlServiceImpl;
 
+import java.sql.Connection;
 import java.util.Objects;
 
 public class BridgeContext {
@@ -28,7 +29,6 @@ public class BridgeContext {
         this.metaTag = builder.metaTag;
         this.connectionData = builder.connectionData;
         this.bridgeProcessing = builder.bridgeProcessing;
-        this.schemaName = builder.schemaName;
 
         if (builder.dataBaseType == null)
             this.dataBaseType = DEFAULT_DATABASE_TYPE;
@@ -42,18 +42,32 @@ public class BridgeContext {
         } else
             this.bridgeService = builder.bridgeService;
 
+        if (builder.schemaName == null)
+            this.schemaName = DEFAULT_SCHEMA_NAME;
+        else
+            this.schemaName = builder.schemaName;
     }
 
     public void execute() {
-        bridgeService.execute(groupTag, metaTag, this.dataBaseType.getConnection(connectionData), bridgeProcessing, schemaName);
+        bridgeService.execute(groupTag, metaTag, this.dataBaseType.getConnection(connectionData), bridgeProcessing, connectionData.getSchemaName());
+    }
+
+    public void migrate(Boolean isClean) {
+        dataBaseType.migrate(connectionData, isClean);
+    }
+
+    public void migrate() {
+        dataBaseType.migrate(connectionData, false);
     }
 
 
     public void init() {
-        dataBaseType.migrate(connectionData);
-        dataBaseType.init(connectionData,groupTag,metaTag,schemaName);
+        dataBaseType.init(connectionData, groupTag, metaTag, schemaName);
     }
 
+    public Connection getConnection() {
+        return dataBaseType.getConnection(connectionData);
+    }
 
     public static Builder custom(String groupTag, String metaTag, ConnectionData connectionData) {
         return new Builder(groupTag, metaTag, connectionData);
@@ -73,7 +87,6 @@ public class BridgeContext {
             this.groupTag = groupTag;
             this.metaTag = metaTag;
             this.connectionData = connectionData;
-            this.schemaName = DEFAULT_SCHEMA_NAME;
         }
 
         public Builder withBridgeProcessing(BridgeProcessing bridgeProcessing) {
@@ -84,6 +97,12 @@ public class BridgeContext {
 
         public Builder withBridgeService(BridgeService bridgeService) {
             this.bridgeService = bridgeService;
+            return this;
+        }
+
+
+        public Builder withSchemaName(String schemaName) {
+            this.schemaName = schemaName;
             return this;
         }
 

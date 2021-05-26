@@ -6,6 +6,7 @@ import com.mntviews.bridge.service.BridgeContext;
 import com.mntviews.bridge.service.DataBaseInitService;
 import lombok.RequiredArgsConstructor;
 import org.flywaydb.core.Flyway;
+import org.flywaydb.core.api.configuration.FluentConfiguration;
 
 import java.sql.Connection;
 
@@ -16,14 +17,20 @@ public class DataBaseInitPostgresqlServiceImpl implements DataBaseInitService {
     private final MetaInitRepo metaInitRepo;
 
     @Override
-    public void migrate(ConnectionData connectionData) {
-        Flyway.configure()
+    public void migrate(ConnectionData connectionData, Boolean isClean) {
+        Flyway flyway = Flyway.configure()
                 .dataSource(connectionData.getUrl(), connectionData.getUserName(), connectionData.getPassword()).locations("classpath:db/migration/postgresql")
                 .schemas(BridgeContext.DEFAULT_SCHEMA_NAME)
-                .defaultSchema(BridgeContext.DEFAULT_SCHEMA_NAME)
-                .load()
-                .migrate();
+                .defaultSchema(BridgeContext.DEFAULT_SCHEMA_NAME).load();
+        if (isClean)
+            flyway.clean();
+        flyway.migrate();
 
+    }
+
+    @Override
+    public void migrate(ConnectionData connectionData) {
+        migrate(connectionData, false);
     }
 
     @Override

@@ -15,7 +15,15 @@ import java.util.concurrent.atomic.AtomicInteger;
 @RequiredArgsConstructor
 public class RawLoopRepoImpl implements RawLoopRepo {
 
-
+    /**
+     * Main loop to process raw queue
+     * TODO: Modify to start with only provided raw_id
+     * TODO: Option to change order
+     * @param connection opened connection with db
+     * @param metaData system data received from db
+     * @param bridgeProcessing outer procedure to process current raw
+     * @param schemaName schema name for system system objects
+     */
     @Override
     public void rawLoop(Connection connection, MetaData metaData, BridgeProcessing bridgeProcessing, String schemaName) {
         AtomicInteger count = new AtomicInteger();
@@ -31,8 +39,15 @@ public class RawLoopRepoImpl implements RawLoopRepo {
                     processData.setProcessedStatus(processedStatus);
                     processData.setErrorMessage(errorMessage);
                     preProcess(connection, processData, schemaName);
-                    if (bridgeProcessing != null)
-                        bridgeProcessing.process(connection, processData);
+                    if (processData.getProcessedStatus() == 1) {
+                        try {
+                            if (bridgeProcessing != null)
+                                bridgeProcessing.process(connection, processData);
+                        } catch (Exception e) {
+                            processData.setProcessedStatus(-3);
+                            processData.setErrorMessage(e.getMessage());
+                        }
+                    }
                     postProcess(connection, processData, schemaName);
                     connection.commit();
                 }

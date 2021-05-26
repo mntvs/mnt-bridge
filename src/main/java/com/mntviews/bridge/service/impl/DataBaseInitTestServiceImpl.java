@@ -7,6 +7,11 @@ import java.sql.Connection;
 
 public class DataBaseInitTestServiceImpl implements DataBaseInitService {
     @Override
+    public void migrate(ConnectionData connectionData, Boolean isDropSchema) {
+
+    }
+
+    @Override
     public void migrate(ConnectionData connectionData) {
 
     }
