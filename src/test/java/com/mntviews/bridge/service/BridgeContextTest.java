@@ -1,19 +1,14 @@
 package com.mntviews.bridge.service;
 
-import com.mntviews.bridge.common.PostgresContainerTest;
+import com.mntviews.bridge.common.PostgresContainerUnitOld;
 import com.mntviews.bridge.model.ConnectionData;
-import com.mntviews.bridge.repository.impl.MetaInitPostgresqlRepoImpl;
-import com.mntviews.bridge.service.impl.DataBaseInitPostgresqlServiceImpl;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
-import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.ResultSetExtractor;
 
-import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.concurrent.Executors;
@@ -27,7 +22,7 @@ import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 
 @ExtendWith(MockitoExtension.class)
-public class BridgeContextTest extends PostgresContainerTest {
+public class BridgeContextTest extends PostgresContainerUnitOld {
 
     final static String ERROR_LOG_TEXT = "Error";
 

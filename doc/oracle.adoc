@@ -1,0 +1,5 @@
+== Oracle XE docker image
+
+https://github.com/oracle/docker-images/tree/main/OracleDatabase/SingleInstance
+
+docker run --name oracle --shm-size=1g -p 1521:1521 -p 8080:8080 -e ORACLE_PWD=123 -v /u01/app/oracle/oradata btimo/oracledb-11.2.0.2-xe

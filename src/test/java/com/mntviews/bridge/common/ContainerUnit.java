@@ -1,0 +1,37 @@
+package com.mntviews.bridge.common;
+
+import com.mntviews.bridge.model.ConnectionData;
+import com.mntviews.bridge.service.BridgeContext;
+import lombok.Getter;
+import org.springframework.jdbc.core.JdbcTemplate;
+
+import java.sql.Connection;
+import java.sql.SQLException;
+
+public class ContainerUnit {
+    public final static String GROUP_TAG = "TEST_GROUP";
+    public final static String META_TAG = "TEST_META";
+    public final static String SCHEMA_NAME = "TEST_SCHEMA";
+
+    final static String ERROR_LOG_TEXT = "Error";
+
+    public final static String DB_NAME = "mnt";
+    public final static String USER_NAME = BridgeContext.DEFAULT_SCHEMA_NAME;
+    public final static String USER_PASSWORD = BridgeContext.DEFAULT_SCHEMA_NAME;
+
+    public final static Integer ITEMS_COUNT = 100;
+
+    public final static Integer TASK_COUNT = 50;
+
+    @Getter
+    protected JdbcTemplate jdbcTemplate;
+
+    protected Connection connection;
+
+    protected ConnectionData connectionData;
+
+    @Getter
+    protected BridgeContext bridgeContext;
+
+
+}

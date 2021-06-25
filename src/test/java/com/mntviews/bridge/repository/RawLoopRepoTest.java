@@ -1,6 +1,6 @@
 package com.mntviews.bridge.repository;
 
-import com.mntviews.bridge.common.PostgresContainerTest;
+import com.mntviews.bridge.common.PostgresContainerUnitOld;
 import com.mntviews.bridge.model.MetaData;
 import com.mntviews.bridge.repository.impl.MetaDataRepoImpl;
 import com.mntviews.bridge.repository.impl.RawLoopRepoImpl;
@@ -12,7 +12,7 @@ import java.sql.SQLException;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
-public class RawLoopRepoTest extends PostgresContainerTest {
+public class RawLoopRepoTest extends PostgresContainerUnitOld {
 
     @Test
     public void rowLoopTest() throws SQLException {

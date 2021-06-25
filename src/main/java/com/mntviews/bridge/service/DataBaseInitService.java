@@ -10,5 +10,7 @@ public interface DataBaseInitService {
 
     void init(ConnectionData connectionData, String groupTag, String metaTag, String schemaName);
 
+    void clear(ConnectionData connectionData, String groupTag, String metaTag);
+
     Connection getConnection(ConnectionData connectionData);
 }

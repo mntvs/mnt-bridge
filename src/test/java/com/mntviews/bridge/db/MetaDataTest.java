@@ -1,6 +1,6 @@
 package com.mntviews.bridge.db;
 
-import com.mntviews.bridge.common.PostgresContainerTest;
+import com.mntviews.bridge.common.PostgresContainerUnitOld;
 import com.mntviews.bridge.service.BridgeContext;
 import org.junit.jupiter.api.Test;
 
@@ -14,8 +14,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 /**
  * Creates test objects and checks meta data structure
  */
-public class MetaDataTest extends PostgresContainerTest {
-
+public class MetaDataTest extends PostgresContainerUnitOld {
 
     @Test
     void startTaskAllSuccessTest() {

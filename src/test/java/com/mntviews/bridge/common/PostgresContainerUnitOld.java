@@ -1,27 +1,19 @@
 package com.mntviews.bridge.common;
 
 import com.mntviews.bridge.model.ConnectionData;
-import com.mntviews.bridge.repository.impl.MetaInitPostgresqlRepoImpl;
 import com.mntviews.bridge.service.BridgeContext;
-import com.mntviews.bridge.service.DataBaseInitService;
 import com.mntviews.bridge.service.DataBaseType;
-import com.mntviews.bridge.service.impl.DataBaseInitPostgresqlServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.postgresql.ds.PGSimpleDataSource;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.support.GeneratedKeyHolder;
-import org.springframework.jdbc.support.KeyHolder;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
-import javax.sql.DataSource;
 import java.sql.*;
-import java.util.Objects;
-import java.util.Properties;
 
 @Testcontainers
-public class PostgresContainerTest {
+public class PostgresContainerUnitOld {
     public final static String GROUP_TAG = "TEST_GROUP";
     public final static String META_TAG = "TEST_META";
     public final static String SCHEMA_NAME = "TEST_SCHEMA";

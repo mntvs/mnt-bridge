@@ -1,7 +1,6 @@
 package com.mntviews.bridge.repository.impl;
 
 import com.mntviews.bridge.model.ConnectionData;
-import com.mntviews.bridge.model.MetaData;
 import com.mntviews.bridge.repository.MetaInitRepo;
 import com.mntviews.bridge.repository.exception.MetaInitException;
 import com.mntviews.bridge.service.BridgeContext;
@@ -56,6 +55,12 @@ public class MetaInitPostgresqlRepoImpl implements MetaInitRepo {
     }
 
     @Override
+    public void clear(Connection connection, String groupTag, String metaTag, String schemaMetaName) {
+
+    }
+
+
+    @Override
     public Connection getConnection(ConnectionData connectionData) {
         Properties props = new Properties();
         props.setProperty("user", connectionData.getUserName());
@@ -64,7 +69,7 @@ public class MetaInitPostgresqlRepoImpl implements MetaInitRepo {
         try {
             Connection connection = DriverManager.getConnection(connectionData.getUrl(), props);
             connection.setAutoCommit(false);
-            return  connection;
+            return connection;
         } catch (SQLException e) {
             throw new BridgeServiceException(e);
         }

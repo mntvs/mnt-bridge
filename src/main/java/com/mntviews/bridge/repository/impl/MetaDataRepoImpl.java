@@ -16,7 +16,7 @@ public class MetaDataRepoImpl implements MetaDataRepo {
     @Override
     public MetaData findMetaData(Connection connection, String groupTag, String metaTag, String schemaName) {
 
-        try (PreparedStatement stmt = connection.prepareStatement("SELECT * FROM " + schemaName + ".fnc_get_meta_data(?,?)")) {
+        try (PreparedStatement stmt = connection.prepareStatement("SELECT * FROM " + schemaName + ".bridge_meta_v where group_tag=? and meta_tag=?")) {
             stmt.setString(1, groupTag);
             stmt.setString(2, metaTag);
             ResultSet rs = stmt.executeQuery();

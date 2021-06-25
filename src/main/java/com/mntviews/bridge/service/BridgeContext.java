@@ -6,7 +6,6 @@ import com.mntviews.bridge.repository.RawLoopRepo;
 import com.mntviews.bridge.repository.impl.MetaDataRepoImpl;
 import com.mntviews.bridge.repository.impl.RawLoopRepoImpl;
 import com.mntviews.bridge.service.impl.BridgeServiceImpl;
-import com.mntviews.bridge.service.impl.DataBaseInitPostgresqlServiceImpl;
 
 import java.sql.Connection;
 import java.util.Objects;
@@ -42,10 +41,7 @@ public class BridgeContext {
         } else
             this.bridgeService = builder.bridgeService;
 
-        if (builder.schemaName == null)
-            this.schemaName = DEFAULT_SCHEMA_NAME;
-        else
-            this.schemaName = builder.schemaName;
+        this.schemaName = Objects.requireNonNullElse(builder.schemaName, DEFAULT_SCHEMA_NAME);
     }
 
     public void execute() {
@@ -63,6 +59,12 @@ public class BridgeContext {
 
     public void init() {
         dataBaseType.init(connectionData, groupTag, metaTag, schemaName);
+    }
+
+
+
+    public void clear() {
+        dataBaseType.clear(connectionData, groupTag, metaTag);
     }
 
     public Connection getConnection() {

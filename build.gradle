@@ -4,7 +4,7 @@ plugins {
 }
 
 group 'com.mntviews'
-version '1.0-SNAPSHOT'
+version '1.0'
 
 repositories {
     mavenLocal()
@@ -17,19 +17,23 @@ dependencies {
 
 
     testImplementation 'org.mockito:mockito-junit-jupiter:3.3.3'
-    testImplementation 'org.testcontainers:testcontainers:1.15.2'
-    testImplementation 'org.testcontainers:junit-jupiter:1.15.2'
-    testImplementation 'org.testcontainers:postgresql:1.15.2'
-    testImplementation 'org.flywaydb:flyway-core:7.8.2'
+    testImplementation 'org.testcontainers:testcontainers:1.15.3'
+    testImplementation 'org.testcontainers:junit-jupiter:1.15.3'
+    testImplementation 'org.testcontainers:postgresql:1.15.3'
+    testImplementation 'org.testcontainers:oracle-xe:1.15.3'
+
     testImplementation 'org.springframework:spring-jdbc:5.3.5'
     testImplementation 'org.mockito:mockito-core:3.9.0'
     testImplementation 'org.mockito:mockito-junit-jupiter:3.9.0'
 
 
-    compile "org.flywaydb:flyway-core:7.8.2"
+    testImplementation 'org.flywaydb:flyway-core:5.2.4'
+    compile "org.flywaydb:flyway-core:5.2.4"
 
     implementation 'org.slf4j:slf4j-nop:1.7.25'
     implementation 'org.postgresql:postgresql:42.2.19'
+    implementation 'com.oracle.database.jdbc:ojdbc8:19.6.0.0'
+
     compileOnly 'org.projectlombok:lombok:1.18.20'
     annotationProcessor 'org.projectlombok:lombok:1.18.20'
     testCompileOnly  'org.projectlombok:lombok:1.18.20'
@@ -47,4 +51,18 @@ publishing {
             from components.java
         }
     }
+}
+
+task createProperties(dependsOn: processResources) {
+    doLast {
+        new File("$buildDir/resources/main/version.properties").withWriter { w ->
+            Properties p = new Properties()
+            p['version'] = project.version.toString()
+            p.store w, null
+        }
+    }
+}
+
+classes {
+    dependsOn createProperties
 }

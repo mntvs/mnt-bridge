@@ -1,13 +1,13 @@
 package com.mntviews.bridge.repository;
 
-import com.mntviews.bridge.common.PostgresContainerTest;
+import com.mntviews.bridge.common.PostgresContainerUnitOld;
 import com.mntviews.bridge.repository.impl.MetaInitPostgresqlRepoImpl;
 import com.mntviews.bridge.service.BridgeContext;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-public class MetaInitRepoTest extends PostgresContainerTest {
+public class MetaInitRepoTest extends PostgresContainerUnitOld {
 
     private final static String GROUP_TAG_NEW = GROUP_TAG + "_NEW";
     private final static String META_TAG_NEW = META_TAG + "_NEW";

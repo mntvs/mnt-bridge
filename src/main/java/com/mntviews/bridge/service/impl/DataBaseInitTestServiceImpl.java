@@ -22,6 +22,11 @@ public class DataBaseInitTestServiceImpl implements DataBaseInitService {
     }
 
     @Override
+    public void clear(ConnectionData connectionData, String groupTag, String metaTag) {
+
+    }
+
+    @Override
     public Connection getConnection(ConnectionData connectionData) {
         return null;
     }
