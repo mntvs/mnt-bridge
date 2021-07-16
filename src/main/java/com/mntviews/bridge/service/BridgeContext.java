@@ -1,11 +1,14 @@
 package com.mntviews.bridge.service;
 
 import com.mntviews.bridge.model.ConnectionData;
+import com.mntviews.bridge.model.MetaData;
 import com.mntviews.bridge.repository.MetaDataRepo;
 import com.mntviews.bridge.repository.RawLoopRepo;
 import com.mntviews.bridge.repository.impl.MetaDataRepoImpl;
 import com.mntviews.bridge.repository.impl.RawLoopRepoImpl;
+import com.mntviews.bridge.service.exception.BridgeContextException;
 import com.mntviews.bridge.service.impl.BridgeServiceImpl;
+import lombok.Getter;
 
 import java.sql.Connection;
 import java.util.Objects;
@@ -22,6 +25,9 @@ public class BridgeContext {
     private final BridgeService bridgeService;
     private final String schemaName;
     private final DataBaseType dataBaseType;
+
+    @Getter
+    private MetaData metaData;
 
     BridgeContext(Builder builder) {
         this.groupTag = builder.groupTag;
@@ -45,7 +51,10 @@ public class BridgeContext {
     }
 
     public void execute() {
-        bridgeService.execute(groupTag, metaTag, this.dataBaseType.getConnection(connectionData), bridgeProcessing, connectionData.getSchemaName());
+        if (metaData != null)
+            bridgeService.execute(metaData, this.dataBaseType.getConnection(connectionData), bridgeProcessing, connectionData.getSchemaName());
+        else throw new BridgeContextException("Bridge context is not initialized");
+
     }
 
     public void migrate(Boolean isClean) {
@@ -58,9 +67,8 @@ public class BridgeContext {
 
 
     public void init() {
-        dataBaseType.init(connectionData, groupTag, metaTag, schemaName);
+        metaData = dataBaseType.init(connectionData, groupTag, metaTag, schemaName);
     }
-
 
 
     public void clear() {

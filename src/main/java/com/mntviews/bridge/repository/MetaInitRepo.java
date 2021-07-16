@@ -9,6 +9,5 @@ public interface MetaInitRepo {
 
     void clear(Connection connection, String groupTag, String metaTag, String schemaMetaName);
 
-
-    Connection getConnection(ConnectionData connectionData);
+    Connection findConnection(ConnectionData connectionData);
 }

@@ -12,7 +12,6 @@ create table ${schemaName}.bridge_group
     schema_name varchar2(30)   not null
 );
 
-
 create unique index ${schemaName}.bridge_group_tag_uindex
     on ${schemaName}.bridge_group (tag);
 
@@ -29,6 +28,8 @@ create table ${schemaName}.bridge_meta
     constraint bridge_meta_uk_1
         unique (tag, group_id)
 );
+
+
 
 create view ${schemaName}.bridge_meta_v
             (group_tag, meta_tag, group_id, meta_id, schema_name, raw_name, buf_name, prc_exec_name, raw_full_name,
@@ -81,6 +82,29 @@ BEGIN
 END;
 $$
 
+create trigger ${schemaName}.TRG_BRIDGE_GROUP_PK
+    before insert
+    on ${schemaName}.BRIDGE_GROUP
+    for each row
+    when (new.id IS NULL)
+BEGIN
+    SELECT ${schemaName}.SQ_BRIDGE_GROUP.nextval INTO :NEW.id FROM DUAL;
+END;
+$$
+
+create trigger ${schemaName}.TRG_BRIDGE_META_PK
+    before insert
+    on ${schemaName}.BRIDGE_META
+    for each row
+    when (new.id IS NULL)
+BEGIN
+    SELECT ${schemaName}.SQ_BRIDGE_META.nextval INTO :NEW.id FROM DUAL;
+END;
+
+$$
+
+
+
 create or replace procedure ${schemaName}.prc_create_meta_by_tag(a_group_tag VARCHAR2, a_meta_tag VARCHAR2,
                                                                  a_schema_name VARCHAR2 DEFAULT NULL)
 as
@@ -90,22 +114,20 @@ as
     l_buf_name           VARCHAR2(100);
     l_prc_exec_full_name VARCHAR2(100);
     l_prc_exec_name      VARCHAR2(100);
+    l_name               VARCHAR2(100);
+    l_schema_name        mnt_bridge.bridge_group.schema_name%TYPE;
     l_group_id           NUMBER;
     l_meta_id            NUMBER;
     l_is_user_exists     NUMBER;
+    l_count              NUMBER;
 begin
-
-    select count(*) into l_is_user_exists from all_users where username = a_schema_name;
-    if (l_is_user_exists = 0) then
-        execute immediate 'create user ' || a_schema_name || ' identified by ' || a_schema_name || ' default tablespace users';
-    end if;
 
     begin
         select id into l_group_id from ${schemaName}.bridge_group where tag = a_group_tag;
     exception
         when no_data_found then
             insert into ${schemaName}.bridge_group (id, tag, schema_name)
-            values (${schemaName}.sq_bridge_group.nextval, a_group_tag, NVL(a_schema_name, '${schemaName}'))
+            values (${schemaName}.sq_bridge_group.nextval, a_group_tag, UPPER(NVL(a_schema_name, '${schemaName}')))
             returning id into l_group_id;
     end;
 
@@ -113,29 +135,48 @@ begin
         select id into l_meta_id from ${schemaName}.bridge_meta where group_id = l_group_id and tag = a_meta_tag;
     exception
         when no_data_found then
-            insert into ${schemaName}.bridge_meta (id,tag, group_id)
+            insert into ${schemaName}.bridge_meta (id, tag, group_id)
             values (${schemaName}.sq_bridge_meta.nextval, a_meta_tag, l_group_id)
             returning id into l_meta_id;
     end;
 
-    select raw_full_name, raw_name, buf_full_name, buf_name, prc_exec_full_name, prc_exec_name
-    into l_raw_full_name, l_raw_name, l_buf_full_name, l_buf_name, l_prc_exec_full_name, l_prc_exec_name
+    select raw_full_name, raw_name, buf_full_name, buf_name, prc_exec_full_name, prc_exec_name, schema_name
+    into l_raw_full_name, l_raw_name, l_buf_full_name, l_buf_name, l_prc_exec_full_name, l_prc_exec_name, l_schema_name
     from ${schemaName}.bridge_meta_v
     where group_id = l_group_id
       and meta_id = l_meta_id;
 
+    select count(*) into l_is_user_exists from all_users where username = l_schema_name;
+    if (l_is_user_exists = 0) then
+        execute immediate 'create user ' || a_schema_name || ' identified by "' || l_schema_name ||
+                          '" default tablespace users';
+    end if;
+
     /* RAW table creation */
-    EXECUTE IMMEDIATE 'CREATE TABLE ' || l_raw_full_name || ' (id NUMBER PRIMARY KEY,' ||
-                      ' f_oper NUMBER DEFAULT 0 NOT NULL ,' ||
-                      ' f_payload CLOB,' ||
-                      ' f_date DATE DEFAULT SYSDATE,' ||
-                      ' s_date DATE DEFAULT SYSDATE,' ||
-                      ' s_status NUMBER DEFAULT 0 NOT NULL,' ||
-                      ' s_action NUMBER DEFAULT 0 NOT NULL,' ||
-                      ' f_id VARCHAR2(2000) NOT NULL,' ||
-                      ' s_msg CLOB,' ||
-                      ' s_counter NUMBER DEFAULT 0 NOT NULL' ||
-                      ')';
+
+    SELECT count(*)
+    into l_count
+    FROM ALL_OBJECTS
+    WHERE OBJECT_NAME = UPPER(l_raw_name)
+      AND OWNER = UPPER(l_schema_name)
+      AND OBJECT_TYPE = 'TABLE';
+
+    if l_count = 0 then
+        EXECUTE IMMEDIATE 'CREATE TABLE ' || l_raw_full_name || ' (id NUMBER PRIMARY KEY,' ||
+                          ' f_oper NUMBER DEFAULT 0 CONSTRAINT ' || l_raw_name ||
+                          '_oper_ch CHECK (f_oper IN (0,1))  NOT NULL,' ||
+                          ' f_payload CLOB,' ||
+                          ' f_date DATE DEFAULT SYSDATE,' ||
+                          ' s_date DATE DEFAULT SYSDATE,' ||
+                          ' s_status NUMBER DEFAULT 0 CONSTRAINT ' || l_raw_name ||
+                          '_status_ch CHECK (s_status IN (0,1,3,4,5,-3,-4)) NOT NULL,' ||
+                          ' s_action NUMBER DEFAULT 0 CONSTRAINT ' || l_raw_name ||
+                          '_action_ch CHECK (s_action IN (0,1)) NOT NULL,' ||
+                          ' f_id VARCHAR2(2000) NOT NULL,' ||
+                          ' s_msg CLOB,' ||
+                          ' s_counter NUMBER DEFAULT 0 NOT NULL' ||
+                          ')';
+    end if;
 
     EXECUTE IMMEDIATE 'COMMENT ON COLUMN ' || l_raw_full_name ||
                       '.s_action is ''Current action. 0 - ready for processing, 1 - will not precessed''';
@@ -149,54 +190,156 @@ begin
     EXECUTE IMMEDIATE 'COMMENT ON COLUMN ' || l_raw_full_name ||
                       '.s_status is ''Status: 0: nothing happend; 1: successfull processing; -3: processing error (repeat); 4: filtered finally; -4: filtered (repeat); 5: skiped without repeat; 3: critical error''';
 
-    EXECUTE IMMEDIATE 'CREATE INDEX IF NOT EXISTS ' || l_raw_name || '_index
-        ON ' || l_raw_full_name || ' (s_action)';
+    l_name := l_raw_name || '_index';
+    SELECT count(*)
+    into l_count
+    FROM ALL_OBJECTS
+    WHERE OBJECT_NAME = UPPER(l_name)
+      AND OWNER = UPPER(l_schema_name)
+      AND OBJECT_TYPE = 'INDEX';
 
-    EXECUTE IMMEDIATE 'ALTER TABLE ' || l_raw_full_name || ' ADD CONSTRAINT ' || l_raw_name ||
-                      '_oper_ch CHECK (f_oper IN (0,1))';
-
-    EXECUTE IMMEDIATE 'ALTER TABLE ' || l_raw_full_name || ' ADD CONSTRAINT ' || l_raw_name ||
-                      '_action_ch CHECK (s_action IN (0,1))';
-
-    EXECUTE IMMEDIATE 'ALTER TABLE ' || l_raw_full_name || ' ADD CONSTRAINT ' || l_raw_name ||
-                      '_status_ch CHECK (s_action IN (0,1,3,4,5,-3,-4))';
+    if l_count = 0 then
+        EXECUTE IMMEDIATE 'CREATE INDEX ' || l_schema_name || '.' || l_name ||
+                          ' ON ' || l_raw_full_name || ' (s_action)';
+    end if;
     /* BUF table creation */
+    SELECT count(*)
+    into l_count
+    FROM ALL_OBJECTS
+    WHERE OBJECT_NAME = UPPER(l_buf_name)
+      AND OWNER = UPPER(l_schema_name)
+      AND OBJECT_TYPE = 'TABLE';
 
-    EXECUTE IMMEDIATE 'CREATE TABLE ' || l_buf_full_name || ' (' || 'id NUMBER PRIMARY KEY,' ||
-                      ' f_oper NUMBER DEFAULT 0 NOT NULL ,' ||
-                      ' f_payload CLOB,' ||
-                      ' s_payload CLOB,' ||
-                      ' f_date DATE DEFAULT SYSDATE NOT NULL ,' ||
-                      ' s_date DATE DEFAULT SYSDATE NOT NULL ,' ||
-                      ' f_raw_id NUMBER NOT NULL,' ||
-                      ' f_id VARCHAR2(2000) NOT NULL' ||
-                      ')';
-
-    EXECUTE IMMEDIATE 'CREATE UNIQUE INDEX ' || l_buf_name || '_f_id_index
-        on ' || l_buf_full_name || ' (f_id)';
-
-
-    EXECUTE IMMEDIATE 'CREATE UNIQUE INDEX ' || l_buf_name || '_raw_id_index
-        on ' || l_buf_full_name || ' (f_raw_id)';
+    if l_count = 0 then
+        EXECUTE IMMEDIATE 'CREATE TABLE ' || l_buf_full_name || ' (' || 'id NUMBER PRIMARY KEY,' ||
+                          ' f_oper NUMBER DEFAULT 0 CONSTRAINT ' || l_buf_name ||
+                          '_s_oper_ch CHECK (f_oper IN (0,1)) NOT NULL ,' ||
+                          ' f_payload CLOB,' ||
+                          ' s_payload CLOB,' ||
+                          ' f_date DATE DEFAULT SYSDATE NOT NULL ,' ||
+                          ' s_date DATE DEFAULT SYSDATE NOT NULL ,' ||
+                          ' f_raw_id NUMBER NOT NULL,' ||
+                          ' f_id VARCHAR2(2000) NOT NULL' ||
+                          ')';
+    end if;
 
 
-    EXECUTE IMMEDIATE 'ALTER TABLE ' || l_buf_full_name || ' ADD CONSTRAINT %s_oper_ch CHECK (f_oper IN (0,1))';
+    l_name := l_buf_name || '_f_id_index';
+    SELECT count(*)
+    into l_count
+    FROM ALL_OBJECTS
+    WHERE OBJECT_NAME = UPPER(l_name)
+      AND OWNER = UPPER(l_schema_name)
+      AND OBJECT_TYPE = 'INDEX';
+
+    if l_count = 0 then
+        EXECUTE IMMEDIATE 'CREATE UNIQUE INDEX ' || l_schema_name || '.' || l_name ||
+                          ' on ' || l_buf_full_name || ' (f_id)';
+    end if;
+
+    l_name := l_buf_name || '_raw_id_index';
+    SELECT count(*)
+    into l_count
+    FROM ALL_OBJECTS
+    WHERE OBJECT_NAME = UPPER(l_name)
+      AND OWNER = UPPER(l_schema_name)
+      AND OBJECT_TYPE = 'INDEX';
+
+    if l_count = 0 then
+        EXECUTE IMMEDIATE 'CREATE UNIQUE INDEX ' || l_schema_name || '.' || l_name ||
+                          ' on ' || l_buf_full_name || ' (f_raw_id)';
+    end if;
+
+
+    l_name := 'SQ_' || l_raw_name;
+    SELECT count(*)
+    into l_count
+    FROM ALL_OBJECTS
+    WHERE OBJECT_NAME = UPPER(l_name)
+      AND OWNER = UPPER(l_schema_name)
+      AND OBJECT_TYPE = 'SEQUENCE';
+
+
+    if l_count = 0 then
+        EXECUTE IMMEDIATE 'CREATE SEQUENCE ' || l_schema_name || '.' || l_name;
+    end if;
+
+    l_name := 'SQ_' || l_buf_name;
+    SELECT count(*)
+    into l_count
+    FROM ALL_OBJECTS
+    WHERE OBJECT_NAME = UPPER(l_name)
+      AND OWNER = UPPER(l_schema_name)
+      AND OBJECT_TYPE = 'SEQUENCE';
+
+    if l_count = 0 then
+        EXECUTE IMMEDIATE 'CREATE SEQUENCE ' || l_schema_name || '.' || l_name;
+    end if;
+
+
+    l_name :='TRG_' ||  l_buf_name || '_PK';
+    SELECT count(*)
+    into l_count
+    FROM ALL_OBJECTS
+    WHERE OBJECT_NAME = UPPER(l_name)
+      AND OWNER = l_schema_name
+      AND OBJECT_TYPE = 'TRIGGER';
+
+    if l_count = 0 then
+        EXECUTE IMMEDIATE 'create trigger ' || l_schema_name || '.' || l_name ||
+                          ' before insert' ||
+                          ' on ' || l_schema_name || '.' || l_buf_name  ||
+                          ' for each row' ||
+                          ' when (new.id IS NULL)' ||
+                          ' BEGIN' ||
+                          ' SELECT ' || l_schema_name || '.' || 'SQ_' || l_buf_name || '.nextval INTO :NEW.id FROM DUAL;' ||
+                          ' END;';
+    end if;
+
+    l_name :='TRG_' ||  l_raw_name || '_PK';
+    SELECT count(*)
+    into l_count
+    FROM ALL_OBJECTS
+    WHERE OBJECT_NAME = UPPER(l_name)
+      AND OWNER = l_schema_name
+      AND OBJECT_TYPE = 'TRIGGER';
+
+    if l_count = 0 then
+        EXECUTE IMMEDIATE 'create trigger ' || l_schema_name || '.' || l_name ||
+                          ' before insert' ||
+                          ' on ' || l_schema_name || '.' || l_raw_name  ||
+                          ' for each row' ||
+                          ' when (new.id IS NULL)' ||
+                          ' BEGIN' ||
+                          ' SELECT ' || l_schema_name || '.' || 'SQ_' || l_raw_name || '.nextval INTO :NEW.id FROM DUAL;' ||
+                          ' END;';
+    end if;
 
     /* Procedure creation */
-    BEGIN
+    SELECT count(*)
+    into l_count
+    FROM ALL_OBJECTS
+    WHERE OBJECT_NAME = UPPER(l_prc_exec_name)
+      AND OWNER = UPPER(l_schema_name)
+      AND OBJECT_TYPE = 'PROCEDURE';
+
+    if l_count = 0 then
         EXECUTE IMMEDIATE
-                'create procedure ' || l_prc_exec_full_name || '(a_buf_id bigint, a_action_tag text)
+                'create procedure ' || l_prc_exec_full_name || '(a_buf_id number, a_action_tag varchar2)
                 as
                     l_sqlerrm VARCHAR2(2000);
                 begin
                 null;
         exception when others then
                 l_sqlerrm:=sqlerrm;
-            raise_application_error(-20001, '' || lower(l_prc_exec_name) || '' error : '' || l_sqlerrm || '' {buf.id='' || a_buf_id || '', action_tag='' || a_action_tag || ''}'');
+            raise_application_error(-20001, ''' || lower(l_prc_exec_name) || ' error : '' || l_sqlerrm || '' {buf.id='' || a_buf_id || '', action_tag='' || a_action_tag || ''}'');
     end;';
-    end;
-EXCEPTION WHEN OTHERS THEN
-    raise_application_error(-20001, 'prc_create_meta_by_tag error : ' || sqlerrm || ' {group_tag=' || a_group_tag || ',meta_tag=' || a_meta_tag || ',schema_name=' || a_schema_name || '}');
+    end if;
+
+EXCEPTION
+    WHEN OTHERS THEN
+        raise_application_error(-20001, 'prc_create_meta_by_tag error : ' || sqlerrm || ' {group_tag=' || a_group_tag ||
+                                        ',meta_tag=' || a_meta_tag || ',schema_name=' || a_schema_name || '}');
 END;
 $$
 
@@ -210,8 +353,9 @@ as
     l_buf_name           VARCHAR2(100);
     l_prc_exec_name      VARCHAR2(100);
     l_schema_name        VARCHAR2(30);
-    l_group_id           number;
-    l_count              number;
+    l_group_id           NUMBER;
+    l_count              NUMBER;
+    l_name               VARCHAR2(30);
 begin
     begin
         select raw_full_name,
@@ -228,12 +372,16 @@ begin
           and meta_tag = a_meta_tag;
     exception
         when no_data_found then
-            raise_application_error(-20001,
+        DBMS_OUTPUT.PUT_LINE('prc_drop_meta_by_tag : bridge meta not found {group_tag=' || a_group_tag ||
+                             ', meta_tag=' || a_meta_tag || '}');
+
+           /* raise_application_error(-20001,
                                     'prc_drop_meta_by_tag error : bridge meta not found {group_tag=' || a_group_tag ||
-                                    ', meta_tag=' || a_meta_tag || '}');
+                                    ', meta_tag=' || a_meta_tag || '}');*/
+
     end;
 
-
+    IF NOT l_group_id IS NULL THEN
     SELECT count(*)
     into l_count
     FROM ALL_OBJECTS
@@ -267,13 +415,40 @@ begin
         EXECUTE IMMEDIATE 'DROP TABLE ' || l_buf_full_name;
     end if;
 
+    l_name := 'SQ_' || l_buf_name;
+    SELECT count(*)
+    into l_count
+    FROM ALL_OBJECTS
+    WHERE OBJECT_NAME = UPPER(l_name)
+      AND OWNER = UPPER(l_schema_name)
+      AND OBJECT_TYPE = 'SEQUENCE';
+
+    if l_count > 0 then
+        EXECUTE IMMEDIATE 'DROP SEQUENCE ' || l_schema_name || '.' || l_name;
+    end if;
+
+    l_name := 'SQ_' || l_raw_name;
+    SELECT count(*)
+    into l_count
+    FROM ALL_OBJECTS
+    WHERE OBJECT_NAME = UPPER(l_name)
+      AND OWNER = UPPER(l_schema_name)
+      AND OBJECT_TYPE = 'SEQUENCE';
+
+    if l_count > 0 then
+        EXECUTE IMMEDIATE 'DROP SEQUENCE ' || l_schema_name || '.' || l_name;
+    end if;
+
+
     delete from ${schemaName}.bridge_meta where group_id = l_group_id and tag = a_meta_tag;
 
     select count(*) into l_count from ${schemaName}.bridge_meta where group_id = l_group_id;
 
-    if l_count = 0 then
+    if l_count > 0 then
         delete from ${schemaName}.bridge_meta where group_id = l_group_id;
     end if;
+
+    END IF;
 end;
 $$
 
@@ -293,15 +468,20 @@ as
     l_raw_f_date    DATE;
     l_raw_s_status  NUMBER;
 begin
+    SAVEPOINT sp_buf;
     execute IMMEDIATE 'select id,f_id,f_payload,f_date,s_status from ' || a_raw_full_name ||
                       ' where s_action=0 and id=:1 for update skip locked'
         into l_raw_id,l_raw_f_id,l_raw_f_payload,l_raw_f_date,l_raw_s_status
         using a_raw_id;
 
     if not l_raw_id is null then
+        begin
         execute immediate 'select id,f_date from ' || a_buf_full_name ||
                           ' where f_id=:1 for update' into l_buf_id,l_buf_f_date using l_raw_f_id;
-
+        exception
+            when no_data_found then
+            l_buf_id := null;
+        end;
         if l_buf_id is null or l_buf_f_date <= l_raw_f_date then
 
             if l_buf_id is null then
@@ -334,6 +514,7 @@ begin
     end if;
 exception
     when others then
+        ROLLBACK TO sp_buf;
         a_processed_status := -3; -- processing happend with error
         a_error_message := sqlerrm;
 end;
@@ -346,7 +527,7 @@ as
 begin
     if a_processed_status <> 0 then
         execute immediate 'update ' || a_raw_full_name ||
-                          ' set (s_status,s_msg,s_date,s_action, s_counter)=(:1,:2,:3,:4,s_counter+1) where id=:5' using a_processed_status,a_error_message,sysdate,case when a_processed_status < 0 then 0 else 1 end, a_raw_id;
+                          ' set (s_status,s_msg,s_date,s_action, s_counter)=(select :1,:2,:3,:4,s_counter+1 from dual) where id=:5' using a_processed_status,a_error_message,sysdate,case when a_processed_status < 0 then 0 else 1 end, a_raw_id;
     end if;
 end;
 $$
@@ -377,7 +558,7 @@ begin
 
     loop
         FETCH c_raw_rec INTO l_raw_id;
-
+        EXIT WHEN c_raw_rec%NOTFOUND;
         /* process the result row */
         ${schemaName}.prc_pre_process(l_raw_id, l_raw_full_name, l_buf_full_name,
                                       l_prc_exec_full_name, l_processed_status, l_error_message);

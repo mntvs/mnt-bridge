@@ -21,8 +21,14 @@ public class BridgeServiceImpl implements BridgeService {
     private final MetaDataRepo metaDataRepo;
 
     @Override
-    public void execute(String groupTag, String metaTag, Connection connection, BridgeProcessing bridgeProcessing, String schemaName) {
-            MetaData metaData = metaDataRepo.findMetaData(connection, groupTag, metaTag, schemaName);
+    public void execute(MetaData metaData, Connection connection, BridgeProcessing bridgeProcessing, String schemaName) {
+
             rawLoopRepo.rawLoop(connection, metaData, bridgeProcessing, schemaName);
     }
+
+    @Override
+    public MetaData findMetaData(String groupTag, String metaTag, Connection connection, String schemaName) {
+        return metaDataRepo.findMetaData(connection, groupTag, metaTag, schemaName);
+    }
+
 }

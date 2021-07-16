@@ -65,7 +65,7 @@ public class ScriptRunner {
         this.connection = connection;
         this.autoCommit = autoCommit;
         this.stopOnError = stopOnError;
-        logWriter = new PrintWriter(System.out);
+        //logWriter = new PrintWriter(System.out);
         errorLogWriter = new PrintWriter(System.out);
     }
 

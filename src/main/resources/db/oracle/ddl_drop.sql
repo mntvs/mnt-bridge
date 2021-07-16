@@ -10,6 +10,6 @@ drop view ${schemaName}.bridge_meta_v;
 drop table ${schemaName}.bridge_meta;
 drop table ${schemaName}.bridge_group;
 
-drop table ${schemaName}.sq_bridge_group;
-drop table ${schemaName}.sq_bridge_group;
+drop sequence ${schemaName}.sq_bridge_group;
+drop sequence ${schemaName}.sq_bridge_meta;
 

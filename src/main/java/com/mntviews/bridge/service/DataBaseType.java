@@ -1,6 +1,8 @@
 package com.mntviews.bridge.service;
 
 import com.mntviews.bridge.model.ConnectionData;
+import com.mntviews.bridge.model.MetaData;
+import com.mntviews.bridge.repository.impl.MetaDataRepoImpl;
 import com.mntviews.bridge.repository.impl.MetaInitOracleRepoImpl;
 import com.mntviews.bridge.repository.impl.MetaInitPostgresqlRepoImpl;
 import com.mntviews.bridge.service.impl.DataBaseInitOracleServiceImpl;
@@ -10,7 +12,9 @@ import com.mntviews.bridge.service.impl.DataBaseInitTestServiceImpl;
 import java.sql.Connection;
 
 public enum DataBaseType implements DataBaseInitService {
-    POSTGRESQL(new DataBaseInitPostgresqlServiceImpl(new MetaInitPostgresqlRepoImpl())), ORACLE(new DataBaseInitOracleServiceImpl(new MetaInitOracleRepoImpl())), TEST(new DataBaseInitTestServiceImpl());
+    POSTGRESQL(new DataBaseInitPostgresqlServiceImpl(new MetaInitPostgresqlRepoImpl()))
+    , ORACLE(new DataBaseInitOracleServiceImpl(new MetaInitOracleRepoImpl()))
+    , TEST(new DataBaseInitTestServiceImpl(null));
 
     private final DataBaseInitService dataBaseInitService;
 
@@ -29,8 +33,8 @@ public enum DataBaseType implements DataBaseInitService {
     }
 
     @Override
-    public void init(ConnectionData connectionData, String groupTag, String metaTag, String schemaName) {
-        dataBaseInitService.init(connectionData, groupTag, metaTag, schemaName);
+    public MetaData init(ConnectionData connectionData, String groupTag, String metaTag, String schemaName) {
+        return dataBaseInitService.init(connectionData, groupTag, metaTag, schemaName);
     }
 
     @Override

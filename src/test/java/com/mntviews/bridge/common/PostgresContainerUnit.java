@@ -3,11 +3,15 @@ package com.mntviews.bridge.common;
 import com.mntviews.bridge.model.ConnectionData;
 import com.mntviews.bridge.service.BridgeContext;
 import com.mntviews.bridge.service.DataBaseType;
+import org.postgresql.ds.PGSimpleDataSource;
+import org.springframework.jdbc.core.JdbcTemplate;
+
+import java.sql.SQLException;
 
 
 public class PostgresContainerUnit extends ContainerUnit {
 
-
+    public final static String dbTypeName = "POSTGRES";
     public final static String DB_URL = "jdbc:postgresql://localhost:5432/postgres";
 
     public final static String USER_NAME = "postgres";
@@ -25,5 +29,52 @@ public class PostgresContainerUnit extends ContainerUnit {
                 .withSchemaName(SCHEMA_NAME)
                 .withDataBaseType(DataBaseType.POSTGRESQL)
                 .build();
+
+        connection = bridgeContext.getConnection();
+
+        PGSimpleDataSource dataSource = new PGSimpleDataSource();
+        dataSource.setUrl(DB_URL);
+        dataSource.setUser(USER_NAME);
+        dataSource.setPassword(USER_PASSWORD);
+        try {
+            dataSource.setProperty("escapeSyntaxCallMode", "callIfNoReturn");
+
+
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+
+        jdbcTemplate = new JdbcTemplate(dataSource);
+
+    }
+
+    @Override
+    public String wrapCodeBlock(String codeBlock) {
+        return "DO $$" + codeBlock + "$$";
+    }
+
+    @Override
+    public String findTestProcedure(String typeTag) {
+        switch (typeTag) {
+            case "EXCEPTION" :
+                return "begin EXECUTE format(\n" +
+                        "                $string$ create or replace procedure %s(a_buf_id bigint, a_action_tag text)\n" +
+                        "                   language plpgsql\n" +
+                        "                   as\n" +
+                        "$f1$\n" +
+                        "begin\n" +
+                        "    raise exception 'Test exception'; \n" +
+                        "exception when others then\n" +
+                        "    raise exception '%s error : %% {buf.id=%%, action_tag=%%}', sqlerrm, a_buf.id,a_action_tag;\n" +
+                        "end;\n" +
+                        "$f1$;\n" +
+                        "                   $string$, '" + bridgeContext.getMetaData().getPrcExecFullName() + "', lower('" + bridgeContext.getMetaData().getPrcExecName() + "')); end;";
+            default : throw new RuntimeException("typeTag not found {" + typeTag + "}");
+        }
+    }
+
+    @Override
+    public String findDbTypeName() {
+        return dbTypeName;
     }
 }

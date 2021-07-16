@@ -1,6 +1,9 @@
 package com.mntviews.bridge.common;
 
 import com.mntviews.bridge.model.ConnectionData;
+import com.mntviews.bridge.model.MetaData;
+import com.mntviews.bridge.repository.MetaDataRepo;
+import com.mntviews.bridge.repository.impl.MetaDataRepoImpl;
 import com.mntviews.bridge.service.BridgeContext;
 import lombok.Getter;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -8,7 +11,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import java.sql.Connection;
 import java.sql.SQLException;
 
-public class ContainerUnit {
+public abstract class ContainerUnit {
     public final static String GROUP_TAG = "TEST_GROUP";
     public final static String META_TAG = "TEST_META";
     public final static String SCHEMA_NAME = "TEST_SCHEMA";
@@ -30,8 +33,14 @@ public class ContainerUnit {
 
     protected ConnectionData connectionData;
 
+    protected MetaDataRepo metaDataRepo = new MetaDataRepoImpl();
+    protected MetaData metaData;
+
     @Getter
     protected BridgeContext bridgeContext;
 
+    public String wrapCodeBlock(String codeBlock) { return codeBlock; }
 
+    abstract public String findTestProcedure(String typeTag);
+    abstract public String findDbTypeName();
 }

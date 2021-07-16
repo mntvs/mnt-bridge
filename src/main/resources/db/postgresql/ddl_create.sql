@@ -69,7 +69,7 @@ FROM (SELECT tt1.group_tag,
 
 delimiter ++
 
-create function fnc_raw_loop(raw_full_name TEXT) returns refcursor
+create function ${schemaName}.fnc_raw_loop(raw_full_name TEXT) returns refcursor
     language plpgsql
 as
 $$
@@ -97,6 +97,7 @@ declare
     l_prc_exec_name      TEXT;
     l_group_id           BIGINT;
     l_meta_id            BIGINT;
+    l_schemaName         TEXT;
 begin
 
     begin
@@ -104,7 +105,7 @@ begin
     exception
         when no_data_found then
             insert into ${schemaName}.bridge_group (tag, schema_name)
-            values (a_group_tag, NVL(a_schema_name, '${schemaName}'))
+            values (a_group_tag, COALESCE(a_schema_name, '${schemaName}'))
             returning id into l_group_id;
     end;
 
@@ -117,11 +118,15 @@ begin
             returning id into l_meta_id;
     end;
 
-    select raw_full_name, raw_name, buf_full_name, buf_name, prc_exec_full_name, prc_exec_name
-    into l_raw_full_name, l_raw_name, l_buf_full_name, l_buf_name, l_prc_exec_full_name, l_prc_exec_name
+    select raw_full_name, raw_name, buf_full_name, buf_name, prc_exec_full_name, prc_exec_name, schema_name
+    into l_raw_full_name, l_raw_name, l_buf_full_name, l_buf_name, l_prc_exec_full_name, l_prc_exec_name, l_schemaName
     from ${schemaName}.bridge_meta_v
     where group_id = l_group_id
       and meta_id = l_meta_id;
+
+
+    EXECUTE 'create schema if not exists ' || l_schemaName;
+
 
     /* RAW table creation */
 
@@ -244,8 +249,10 @@ begin
           and meta_tag = a_meta_tag;
     exception
         when no_data_found then
-            raise exception 'prc_drop_meta_by_tag error : %% {buf.id=%%, action_tag=%%}', 'bridge meta not found', a_group_tag,a_meta_tag;
+            raise notice 'prc_drop_meta_by_tag : bridge meta not found {group_tag=%, meta_tag=%}', a_group_tag,a_meta_tag;
     end;
+
+    IF NOT l_group_id IS NULL THEN
 
     EXECUTE 'DROP PROCEDURE IF EXISTS ' || l_prc_exec_full_name || ' (bigint,text)';
     EXECUTE 'DROP TABLE IF EXISTS ' || l_raw_full_name;
@@ -258,6 +265,7 @@ begin
     if l_meta_count = 0 then
         delete from ${schemaName}.bridge_meta where group_id = l_group_id;
     end if;
+    END IF;
 end
 $$;
 
@@ -368,10 +376,10 @@ begin
     for c_raw_rec in execute l_raw_loop_query
         loop
             /* process the result row */
-            call prc_pre_process(c_raw_rec.id, l_raw_full_name, l_buf_full_name,
+            call ${schemaName}.prc_pre_process(c_raw_rec.id, l_raw_full_name, l_buf_full_name,
                                  l_prc_exec_full_name, l_processed_status, l_error_message);
 
-            call prc_post_process(c_raw_rec.id, l_raw_full_name, l_processed_status, l_error_message);
+            call ${schemaName}.prc_post_process(c_raw_rec.id, l_raw_full_name, l_processed_status, l_error_message);
 
             if l_processed_status <> 0 then
                 l_count := l_count + 1;

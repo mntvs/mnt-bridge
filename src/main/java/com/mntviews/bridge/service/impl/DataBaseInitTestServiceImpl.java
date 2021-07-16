@@ -1,33 +1,26 @@
 package com.mntviews.bridge.service.impl;
 
 import com.mntviews.bridge.model.ConnectionData;
+import com.mntviews.bridge.repository.MetaDataRepo;
+import com.mntviews.bridge.repository.MetaInitRepo;
+import com.mntviews.bridge.repository.impl.MetaDataRepoImpl;
 import com.mntviews.bridge.service.DataBaseInitService;
 
 import java.sql.Connection;
 
-public class DataBaseInitTestServiceImpl implements DataBaseInitService {
-    @Override
-    public void migrate(ConnectionData connectionData, Boolean isDropSchema) {
+public class DataBaseInitTestServiceImpl extends DataBaseInit{
 
+    public DataBaseInitTestServiceImpl(MetaInitRepo metaInitRepo, MetaDataRepo metaDataRepo) {
+        super(metaInitRepo, metaDataRepo);
     }
 
-    @Override
-    public void migrate(ConnectionData connectionData) {
-
+    public DataBaseInitTestServiceImpl(MetaInitRepo metaInitRepo) {
+        super(metaInitRepo, new MetaDataRepoImpl());
     }
 
-    @Override
-    public void init(ConnectionData connectionData, String groupTag, String metaTag, String schemaName) {
-
-    }
 
     @Override
-    public void clear(ConnectionData connectionData, String groupTag, String metaTag) {
+    public void migrate(ConnectionData connectionData, Boolean isClean) {
 
-    }
-
-    @Override
-    public Connection getConnection(ConnectionData connectionData) {
-        return null;
     }
 }
