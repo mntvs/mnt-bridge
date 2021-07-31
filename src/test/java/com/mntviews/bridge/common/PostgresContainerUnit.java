@@ -24,7 +24,7 @@ public class PostgresContainerUnit extends ContainerUnit {
                 .custom(GROUP_TAG, META_TAG, connectionData)
                 .withBridgeProcessing((connection, processData) -> {
                     if (processData.getRawId() < 0)
-                        throw new RuntimeException(ERROR_LOG_TEXT);
+                        throw new RuntimeException(TEST_EXCEPTION_TEXT);
                 })
                 .withSchemaName(SCHEMA_NAME)
                 .withDataBaseType(DataBaseType.POSTGRESQL)
@@ -58,14 +58,28 @@ public class PostgresContainerUnit extends ContainerUnit {
         switch (typeTag) {
             case "EXCEPTION" :
                 return "begin EXECUTE format(\n" +
-                        "                $string$ create or replace procedure %s(a_buf_id bigint, a_action_tag text)\n" +
+                        "                $string$ create or replace procedure %s(a_raw_id bigint, a_buf_id bigint)\n" +
                         "                   language plpgsql\n" +
                         "                   as\n" +
                         "$f1$\n" +
                         "begin\n" +
                         "    raise exception 'Test exception'; \n" +
                         "exception when others then\n" +
-                        "    raise exception '%s error : %% {buf.id=%%, action_tag=%%}', sqlerrm, a_buf.id,a_action_tag;\n" +
+                        "    raise exception '%s error : %% {buf.id=%%}', sqlerrm, a_buf_id;\n" +
+                        "end;\n" +
+                        "$f1$;\n" +
+                        "                   $string$, '" + bridgeContext.getMetaData().getPrcExecFullName() + "', lower('" + bridgeContext.getMetaData().getPrcExecName() + "')); end;";
+
+            case "EXCEPTION2" :
+                return "begin EXECUTE format(\n" +
+                        "                $string$ create or replace procedure %s(a_raw_id bigint, a_buf_id bigint)\n" +
+                        "                   language plpgsql\n" +
+                        "                   as\n" +
+                        "$f1$\n" +
+                        "begin\n" +
+                        "    if a_raw_id%%2=0 then raise exception '" + TEST_EXCEPTION_TEXT + "'; end if; \n" +
+                        "exception when others then\n" +
+                        "    raise exception '%s error : %% {buf.id=%%}', sqlerrm, a_buf_id; \n" +
                         "end;\n" +
                         "$f1$;\n" +
                         "                   $string$, '" + bridgeContext.getMetaData().getPrcExecFullName() + "', lower('" + bridgeContext.getMetaData().getPrcExecName() + "')); end;";

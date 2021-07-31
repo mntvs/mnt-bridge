@@ -40,6 +40,8 @@ public class OracleContainerUnit extends ContainerUnit {
         bridgeContext = BridgeContext
                 .custom(GROUP_TAG, META_TAG, connectionData)
                 .withBridgeProcessing((connection, processData) -> {
+                    if (processData.getRawId() < 0)
+                        throw new RuntimeException(TEST_EXCEPTION_TEXT);
                 })
                 .withSchemaName(SCHEMA_NAME)
                 .withDataBaseType(DataBaseType.ORACLE)
@@ -70,14 +72,25 @@ public class OracleContainerUnit extends ContainerUnit {
         switch (typeTag) {
             case "EXCEPTION" :
                 return "begin EXECUTE IMMEDIATE\n" +
-                        "                'create or replace procedure " + bridgeContext.getMetaData().getPrcExecFullName() + "(a_buf_id number, a_action_tag varchar2)\n" +
+                        "                'create or replace procedure " + bridgeContext.getMetaData().getPrcExecFullName() + "(a_raw_id number, a_buf_id number)\n" +
                         "                as\n" +
                         "                    l_sqlerrm VARCHAR2(2000);\n" +
                         "                begin\n" +
                         "                raise_application_error(-20001,''Test exception'');\n" +
                         "        exception when others then\n" +
                         "                l_sqlerrm:=sqlerrm;\n" +
-                        "            raise_application_error(-20001, ''' || lower('" + bridgeContext.getMetaData().getPrcExecName() + "') || ' error : '' || l_sqlerrm || '' {buf.id='' || a_buf_id || '', action_tag='' || a_action_tag || ''}'');\n" +
+                        "            raise_application_error(-20001, ''' || lower('" + bridgeContext.getMetaData().getPrcExecName() + "') || ' error : '' || l_sqlerrm || '' {buf.id='' || a_buf_id || ''}'');\n" +
+                        "    end;'; end;";
+            case "EXCEPTION2" :
+                return "begin EXECUTE IMMEDIATE\n" +
+                        "                'create or replace procedure " + bridgeContext.getMetaData().getPrcExecFullName() + "(a_raw_id number, a_buf_id number)\n" +
+                        "                as\n" +
+                        "                    l_sqlerrm VARCHAR2(2000);\n" +
+                        "                begin\n" +
+                        "               if MOD(a_raw_id,2)=0 then raise_application_error(-20001,''" + TEST_EXCEPTION_TEXT + "''); end if; \n" +
+                        "        exception when others then\n" +
+                        "                l_sqlerrm:=sqlerrm;\n" +
+                        "            raise_application_error(-20001, ''' || lower('" + bridgeContext.getMetaData().getPrcExecName() + "') || ' error : '' || l_sqlerrm || '' {buf.id='' || a_buf_id || ''}'');\n" +
                         "    end;'; end;";
             default : throw new RuntimeException("typeTag not found {" + typeTag + "}");
         }

@@ -21,13 +21,16 @@ abstract public class DataBaseInit implements DataBaseInitService {
     protected final MetaDataRepo metaDataRepo;
 
     public MetaData init(ConnectionData connectionData, String groupTag, String metaTag, String schemaName) {
-        Connection connection = metaInitRepo.findConnection(connectionData);
-        MetaData metaData = metaDataRepo.findMetaData(connection, groupTag, metaTag, connectionData.getSchemaName());
-        if (metaData == null) {
-            metaInitRepo.init(connection, groupTag, metaTag, schemaName, connectionData.getSchemaName());
-            metaData = metaDataRepo.findMetaData(connection, groupTag, metaTag, connectionData.getSchemaName());
+        if (metaInitRepo != null) {
+            Connection connection = metaInitRepo.findConnection(connectionData);
+            MetaData metaData = metaDataRepo.findMetaData(connection, groupTag, metaTag, connectionData.getSchemaName());
+            if (metaData == null) {
+                metaInitRepo.init(connection, groupTag, metaTag, schemaName, connectionData.getSchemaName());
+                metaData = metaDataRepo.findMetaData(connection, groupTag, metaTag, connectionData.getSchemaName());
+            }
+            return metaData;
         }
-        return metaData;
+        return null;
     }
 
     protected void migrate(ConnectionData connectionData, Boolean isClean, String ddlCreatePath, String ddlDropPath) {
@@ -65,13 +68,17 @@ abstract public class DataBaseInit implements DataBaseInitService {
 
     @Override
     public void clear(ConnectionData connectionData, String groupTag, String metaTag) {
-        metaInitRepo.clear(metaInitRepo.findConnection(connectionData), groupTag, metaTag, connectionData.getSchemaName());
+        if (metaInitRepo != null)
+            metaInitRepo.clear(metaInitRepo.findConnection(connectionData), groupTag, metaTag, connectionData.getSchemaName());
     }
 
 
     @Override
     public Connection getConnection(ConnectionData connectionData) {
-        return metaInitRepo.findConnection(connectionData);
+        if (metaInitRepo != null)
+            return metaInitRepo.findConnection(connectionData);
+        else
+            return null;
     }
 
 }

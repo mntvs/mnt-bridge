@@ -70,7 +70,6 @@ public class BridgeContext {
         metaData = dataBaseType.init(connectionData, groupTag, metaTag, schemaName);
     }
 
-
     public void clear() {
         dataBaseType.clear(connectionData, groupTag, metaTag);
     }

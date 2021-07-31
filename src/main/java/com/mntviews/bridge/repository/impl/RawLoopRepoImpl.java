@@ -55,6 +55,8 @@ public class RawLoopRepoImpl implements RawLoopRepo {
         } catch (Exception e) {
             throw new RawLoopRepoException(e);
         }
+        int i;
+        i=0;
     }
 
 

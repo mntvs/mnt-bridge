@@ -77,7 +77,7 @@ CREATE OR REPLACE FUNCTION ${schemaName}.fnc_raw_loop(raw_full_name VARCHAR2) RE
 AS
     c_raw SYS_REFCURSOR;
 BEGIN
-    open c_raw for 'select id from ' || raw_full_name || ' where s_action=0 order by s_date desc, id desc';
+    open c_raw for 'select id from ' || raw_full_name || ' where s_action=0 order by f_date asc, id asc';
     RETURN c_raw;
 END;
 $$
@@ -174,6 +174,7 @@ begin
                           '_action_ch CHECK (s_action IN (0,1)) NOT NULL,' ||
                           ' f_id VARCHAR2(2000) NOT NULL,' ||
                           ' s_msg CLOB,' ||
+                          ' f_msg CLOB,' ||
                           ' s_counter NUMBER DEFAULT 0 NOT NULL' ||
                           ')';
     end if;
@@ -219,7 +220,8 @@ begin
                           ' f_date DATE DEFAULT SYSDATE NOT NULL ,' ||
                           ' s_date DATE DEFAULT SYSDATE NOT NULL ,' ||
                           ' f_raw_id NUMBER NOT NULL,' ||
-                          ' f_id VARCHAR2(2000) NOT NULL' ||
+                          ' f_id VARCHAR2(2000) NOT NULL,' ||
+                          ' s_counter NUMBER DEFAULT 0 NOT NULL' ||
                           ')';
     end if;
 
@@ -277,7 +279,7 @@ begin
     end if;
 
 
-    l_name :='TRG_' ||  l_buf_name || '_PK';
+    l_name := 'TRG_' || l_buf_name || '_PK';
     SELECT count(*)
     into l_count
     FROM ALL_OBJECTS
@@ -288,15 +290,16 @@ begin
     if l_count = 0 then
         EXECUTE IMMEDIATE 'create trigger ' || l_schema_name || '.' || l_name ||
                           ' before insert' ||
-                          ' on ' || l_schema_name || '.' || l_buf_name  ||
+                          ' on ' || l_schema_name || '.' || l_buf_name ||
                           ' for each row' ||
                           ' when (new.id IS NULL)' ||
                           ' BEGIN' ||
-                          ' SELECT ' || l_schema_name || '.' || 'SQ_' || l_buf_name || '.nextval INTO :NEW.id FROM DUAL;' ||
+                          ' SELECT ' || l_schema_name || '.' || 'SQ_' || l_buf_name ||
+                          '.nextval INTO :NEW.id FROM DUAL;' ||
                           ' END;';
     end if;
 
-    l_name :='TRG_' ||  l_raw_name || '_PK';
+    l_name := 'TRG_' || l_raw_name || '_PK';
     SELECT count(*)
     into l_count
     FROM ALL_OBJECTS
@@ -307,11 +310,12 @@ begin
     if l_count = 0 then
         EXECUTE IMMEDIATE 'create trigger ' || l_schema_name || '.' || l_name ||
                           ' before insert' ||
-                          ' on ' || l_schema_name || '.' || l_raw_name  ||
+                          ' on ' || l_schema_name || '.' || l_raw_name ||
                           ' for each row' ||
                           ' when (new.id IS NULL)' ||
                           ' BEGIN' ||
-                          ' SELECT ' || l_schema_name || '.' || 'SQ_' || l_raw_name || '.nextval INTO :NEW.id FROM DUAL;' ||
+                          ' SELECT ' || l_schema_name || '.' || 'SQ_' || l_raw_name ||
+                          '.nextval INTO :NEW.id FROM DUAL;' ||
                           ' END;';
     end if;
 
@@ -325,14 +329,14 @@ begin
 
     if l_count = 0 then
         EXECUTE IMMEDIATE
-                'create procedure ' || l_prc_exec_full_name || '(a_buf_id number, a_action_tag varchar2)
+                'create procedure ' || l_prc_exec_full_name || '(a_raw_id number, a_buf_id number)
                 as
                     l_sqlerrm VARCHAR2(2000);
                 begin
                 null;
         exception when others then
                 l_sqlerrm:=sqlerrm;
-            raise_application_error(-20001, ''' || lower(l_prc_exec_name) || ' error : '' || l_sqlerrm || '' {buf.id='' || a_buf_id || '', action_tag='' || a_action_tag || ''}'');
+            raise_application_error(-20001, ''' || lower(l_prc_exec_name) || ' error : '' || l_sqlerrm || '' {buf.id='' || a_buf_id || ''}'');
     end;';
     end if;
 
@@ -372,81 +376,81 @@ begin
           and meta_tag = a_meta_tag;
     exception
         when no_data_found then
-        DBMS_OUTPUT.PUT_LINE('prc_drop_meta_by_tag : bridge meta not found {group_tag=' || a_group_tag ||
-                             ', meta_tag=' || a_meta_tag || '}');
+            DBMS_OUTPUT.PUT_LINE('prc_drop_meta_by_tag : bridge meta not found {group_tag=' || a_group_tag ||
+                                 ', meta_tag=' || a_meta_tag || '}');
 
-           /* raise_application_error(-20001,
-                                    'prc_drop_meta_by_tag error : bridge meta not found {group_tag=' || a_group_tag ||
-                                    ', meta_tag=' || a_meta_tag || '}');*/
+        /* raise_application_error(-20001,
+                                 'prc_drop_meta_by_tag error : bridge meta not found {group_tag=' || a_group_tag ||
+                                 ', meta_tag=' || a_meta_tag || '}');*/
 
     end;
 
     IF NOT l_group_id IS NULL THEN
-    SELECT count(*)
-    into l_count
-    FROM ALL_OBJECTS
-    WHERE OBJECT_NAME = UPPER(l_prc_exec_name)
-      AND OWNER = UPPER(l_schema_name)
-      AND OBJECT_TYPE = 'PROCEDURE';
+        SELECT count(*)
+        into l_count
+        FROM ALL_OBJECTS
+        WHERE OBJECT_NAME = UPPER(l_prc_exec_name)
+          AND OWNER = UPPER(l_schema_name)
+          AND OBJECT_TYPE = 'PROCEDURE';
 
-    if l_count > 0 then
-        EXECUTE IMMEDIATE 'DROP PROCEDURE ' || l_prc_exec_full_name;
-    end if;
+        if l_count > 0 then
+            EXECUTE IMMEDIATE 'DROP PROCEDURE ' || l_prc_exec_full_name;
+        end if;
 
-    SELECT count(*)
-    into l_count
-    FROM ALL_OBJECTS
-    WHERE OBJECT_NAME = UPPER(l_raw_name)
-      AND OWNER = UPPER(l_schema_name)
-      AND OBJECT_TYPE = 'TABLE';
+        SELECT count(*)
+        into l_count
+        FROM ALL_OBJECTS
+        WHERE OBJECT_NAME = UPPER(l_raw_name)
+          AND OWNER = UPPER(l_schema_name)
+          AND OBJECT_TYPE = 'TABLE';
 
-    if l_count > 0 then
-        EXECUTE IMMEDIATE 'DROP TABLE ' || l_raw_full_name;
-    end if;
+        if l_count > 0 then
+            EXECUTE IMMEDIATE 'DROP TABLE ' || l_raw_full_name;
+        end if;
 
-    SELECT count(*)
-    into l_count
-    FROM ALL_OBJECTS
-    WHERE OBJECT_NAME = UPPER(l_buf_name)
-      AND OWNER = UPPER(l_schema_name)
-      AND OBJECT_TYPE = 'TABLE';
+        SELECT count(*)
+        into l_count
+        FROM ALL_OBJECTS
+        WHERE OBJECT_NAME = UPPER(l_buf_name)
+          AND OWNER = UPPER(l_schema_name)
+          AND OBJECT_TYPE = 'TABLE';
 
-    if l_count > 0 then
-        EXECUTE IMMEDIATE 'DROP TABLE ' || l_buf_full_name;
-    end if;
+        if l_count > 0 then
+            EXECUTE IMMEDIATE 'DROP TABLE ' || l_buf_full_name;
+        end if;
 
-    l_name := 'SQ_' || l_buf_name;
-    SELECT count(*)
-    into l_count
-    FROM ALL_OBJECTS
-    WHERE OBJECT_NAME = UPPER(l_name)
-      AND OWNER = UPPER(l_schema_name)
-      AND OBJECT_TYPE = 'SEQUENCE';
+        l_name := 'SQ_' || l_buf_name;
+        SELECT count(*)
+        into l_count
+        FROM ALL_OBJECTS
+        WHERE OBJECT_NAME = UPPER(l_name)
+          AND OWNER = UPPER(l_schema_name)
+          AND OBJECT_TYPE = 'SEQUENCE';
 
-    if l_count > 0 then
-        EXECUTE IMMEDIATE 'DROP SEQUENCE ' || l_schema_name || '.' || l_name;
-    end if;
+        if l_count > 0 then
+            EXECUTE IMMEDIATE 'DROP SEQUENCE ' || l_schema_name || '.' || l_name;
+        end if;
 
-    l_name := 'SQ_' || l_raw_name;
-    SELECT count(*)
-    into l_count
-    FROM ALL_OBJECTS
-    WHERE OBJECT_NAME = UPPER(l_name)
-      AND OWNER = UPPER(l_schema_name)
-      AND OBJECT_TYPE = 'SEQUENCE';
+        l_name := 'SQ_' || l_raw_name;
+        SELECT count(*)
+        into l_count
+        FROM ALL_OBJECTS
+        WHERE OBJECT_NAME = UPPER(l_name)
+          AND OWNER = UPPER(l_schema_name)
+          AND OBJECT_TYPE = 'SEQUENCE';
 
-    if l_count > 0 then
-        EXECUTE IMMEDIATE 'DROP SEQUENCE ' || l_schema_name || '.' || l_name;
-    end if;
+        if l_count > 0 then
+            EXECUTE IMMEDIATE 'DROP SEQUENCE ' || l_schema_name || '.' || l_name;
+        end if;
 
 
-    delete from ${schemaName}.bridge_meta where group_id = l_group_id and tag = a_meta_tag;
+        delete from ${schemaName}.bridge_meta where group_id = l_group_id and tag = a_meta_tag;
 
-    select count(*) into l_count from ${schemaName}.bridge_meta where group_id = l_group_id;
+        select count(*) into l_count from ${schemaName}.bridge_meta where group_id = l_group_id;
 
-    if l_count > 0 then
-        delete from ${schemaName}.bridge_meta where group_id = l_group_id;
-    end if;
+        if l_count > 0 then
+            delete from ${schemaName}.bridge_meta where group_id = l_group_id;
+        end if;
 
     END IF;
 end;
@@ -459,7 +463,6 @@ create or replace procedure ${schemaName}.prc_pre_process(a_raw_id IN NUMBER, a_
                                                           a_processed_status IN OUT NUMBER,
                                                           a_error_message IN OUT VARCHAR2)
 as
-    l_action_tag    VARCHAR2(1);
     l_buf_id        NUMBER;
     l_buf_f_date    DATE;
     l_raw_id        NUMBER;
@@ -467,52 +470,36 @@ as
     l_raw_f_payload CLOB;
     l_raw_f_date    DATE;
     l_raw_s_status  NUMBER;
+    l_count         NUMBER;
 begin
-    SAVEPOINT sp_buf;
+
     execute IMMEDIATE 'select id,f_id,f_payload,f_date,s_status from ' || a_raw_full_name ||
                       ' where s_action=0 and id=:1 for update skip locked'
         into l_raw_id,l_raw_f_id,l_raw_f_payload,l_raw_f_date,l_raw_s_status
         using a_raw_id;
 
-    if not l_raw_id is null then
-        begin
-        execute immediate 'select id,f_date from ' || a_buf_full_name ||
-                          ' where f_id=:1 for update' into l_buf_id,l_buf_f_date using l_raw_f_id;
-        exception
-            when no_data_found then
-            l_buf_id := null;
-        end;
-        if l_buf_id is null or l_buf_f_date <= l_raw_f_date then
+    SAVEPOINT sp_buf;
 
-            if l_buf_id is null then
-                execute immediate 'insert into ' || a_buf_full_name ||
-                                  ' (f_raw_id,f_id, f_payload, f_date) values ( :1, :2, :3, :4 ) returning id into :5' using
-                    l_raw_id,l_raw_f_id,l_raw_f_payload, l_raw_f_date returning into l_buf_id;
-                l_action_tag := 'I';
-            else
-                execute immediate 'update ' || a_buf_full_name ||
-                                  ' set (f_raw_id, f_payload, f_date)=(:1,:2,:3) where f_id=:4' using l_raw_id, l_raw_f_payload, l_raw_f_date, l_raw_f_id;
-                l_action_tag := 'U';
-            end if;
+    execute immediate 'merge into ' || a_buf_full_name ||
+                      ' a using (select :1 as raw_id, :2 raw_f_id, :3 raw_f_payload, :4 f_date from dual) b on (a.f_id = b.raw_f_id) when not matched then ' ||
+                      'insert (f_raw_id,f_id, f_payload, f_date) values (b.raw_id, b.raw_f_id, b.raw_f_payload, b.f_date) when matched then ' ||
+                      'update set a.f_raw_id=b.raw_id,a.f_payload=b.raw_f_payload,a.f_date=b.f_date, s_counter=s_counter+1 where f_date<=:5' using
+        l_raw_id,l_raw_f_id,l_raw_f_payload, l_raw_f_date, l_raw_f_date;
 
-
-            if l_action_tag = 'U' OR l_action_tag = 'D' OR
-               (l_action_tag = 'I' AND NOT l_raw_f_date IS NULL) then
-                execute immediate 'begin ' || a_prc_exec_full_name || ' (:1,:2); end;' using l_buf_id,l_action_tag;
-                l_raw_s_status := 1; -- Success
-            else
-                l_raw_s_status := 5; -- Skiped
-            end if;
-        else
-            l_raw_s_status := 5; -- Skiped
-        end if;
-
-        a_processed_status := l_raw_s_status;
-        -- processing finished successfully
+    if SQL%ROWCOUNT > 0 then
+        execute immediate 'begin ' || a_prc_exec_full_name || ' (:1,:2); end;' using l_raw_id,l_buf_id;
+        l_raw_s_status := 1; -- Success
     else
-        a_processed_status := 0; -- processing not happened. Omitted
+        l_raw_s_status := 5; -- Skiped
     end if;
+
+    a_processed_status := l_raw_s_status;
+    -- processing finished successfully
 exception
+    when no_data_found then
+        ROLLBACK TO sp_buf;
+        a_processed_status := 0; -- processing not happened. Omitted
+        a_error_message := '';
     when others then
         ROLLBACK TO sp_buf;
         a_processed_status := -3; -- processing happend with error
@@ -522,19 +509,21 @@ $$
 
 create or replace procedure ${schemaName}.prc_post_process(a_raw_id IN NUMBER, a_raw_full_name IN VARCHAR2,
                                                            a_processed_status IN NUMBER,
-                                                           a_error_message IN VARCHAR2)
+                                                           a_error_message IN VARCHAR2,
+                                                           a_msg IN CLOB default NULL)
 as
 begin
     if a_processed_status <> 0 then
         execute immediate 'update ' || a_raw_full_name ||
-                          ' set (s_status,s_msg,s_date,s_action, s_counter)=(select :1,:2,:3,:4,s_counter+1 from dual) where id=:5' using a_processed_status,a_error_message,sysdate,case when a_processed_status < 0 then 0 else 1 end, a_raw_id;
+                          ' set (s_status,s_msg,s_date,s_action, s_counter, f_msg)=(select :1,:2,:3,:4,s_counter+1,:5 from dual) where id=:6'
+            using a_processed_status,a_error_message,sysdate,case when a_processed_status < 0 then 0 else 1 end, a_msg, a_raw_id;
     end if;
 end;
 $$
 
 
 create or replace procedure ${schemaName}.prc_start_task(a_group_tag VARCHAR2, a_meta_tag VARCHAR2,
-                                                         a_raw_id NUMBER DEFAULT NULL)
+                                                         a_raw_id NUMBER DEFAULT NULL, a_msg IN CLOB default NULL)
 as
     l_count              NUMBER := 0;
     l_error_message      VARCHAR2(4000);
@@ -560,17 +549,17 @@ begin
         FETCH c_raw_rec INTO l_raw_id;
         EXIT WHEN c_raw_rec%NOTFOUND;
         /* process the result row */
+        l_error_message := NULL;
+        l_processed_status := NULL;
         ${schemaName}.prc_pre_process(l_raw_id, l_raw_full_name, l_buf_full_name,
                                       l_prc_exec_full_name, l_processed_status, l_error_message);
 
-        ${schemaName}.prc_post_process(l_raw_id, l_raw_full_name, l_processed_status, l_error_message);
+        ${schemaName}.prc_post_process(l_raw_id, l_raw_full_name, l_processed_status, l_error_message, a_msg);
 
         if l_processed_status <> 0 then
             l_count := l_count + 1;
         end if;
-        if MOD(l_count, 100) = 0 then
-            commit;
-        end if;
+        commit;
     end loop;
     commit;
 end;
