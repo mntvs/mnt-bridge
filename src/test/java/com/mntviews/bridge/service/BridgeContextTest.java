@@ -6,6 +6,7 @@ import com.mntviews.bridge.common.OracleContainerUnit;
 import com.mntviews.bridge.common.PostgresContainerUnit;
 import com.mntviews.bridge.model.ConnectionData;
 import com.mntviews.bridge.model.MetaData;
+import com.mntviews.bridge.model.RawData;
 import lombok.extern.java.Log;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -36,11 +37,8 @@ import static org.mockito.Mockito.doNothing;
 @ExtendWith(MockitoExtension.class)
 public class BridgeContextTest {
 
-
     @Mock
     BridgeService bridgeService;
-
-
 
     private List<ContainerUnit> containerUnitList;
 
@@ -67,13 +65,14 @@ public class BridgeContextTest {
 
     @AfterEach
     public void clear() {
+
         containerUnitList.forEach(containerUnit -> containerUnit.getBridgeContext().clear());
     }
 
 
     @Test
     public void executeBridgeContextTest() {
-        doNothing().when(bridgeService).execute(isA(MetaData.class),isNull(), isA(BridgeProcessing.class), isA(String.class));
+        doNothing().when(bridgeService).execute(isA(MetaData.class), isNull(), isA(BridgeProcessing.class), isA(String.class));
 
         BridgeContext bridgeContext = BridgeContext
                 .custom("GROUP_TAG", "META_TAG", new ConnectionData("URL", "USER_NAME", "PASSWORD", "DEFAULT_SCHEMA"))
@@ -97,9 +96,9 @@ public class BridgeContextTest {
             BridgeContext bridgeContext = containerUnit.getBridgeContext();
             jdbcTemplate.update(containerUnit.wrapCodeBlock(
                     "BEGIN " +
-                    "                insert into " + SCHEMA_NAME + ".fbi_raw_" + META_TAG + " (id, f_id, f_payload) values (-1, 1, '{\"field\":\"test\"}');\n" +
-                    "                insert into " + SCHEMA_NAME + ".fbi_raw_" + META_TAG + " (id, f_id, f_payload) values (2, 2, '{\"field\":\"test2\"}');\n" +
-                    "END;"));
+                            "                insert into " + SCHEMA_NAME + ".fbi_raw_" + META_TAG + " (id, f_id, f_payload) values (-1, 1, '{\"field\":\"test\"}');\n" +
+                            "                insert into " + SCHEMA_NAME + ".fbi_raw_" + META_TAG + " (id, f_id, f_payload) values (2, 2, '{\"field\":\"test2\"}');\n" +
+                            "END;"));
 
             bridgeContext.execute();
 
@@ -134,15 +133,16 @@ public class BridgeContextTest {
             JdbcTemplate jdbcTemplate = containerUnit.getJdbcTemplate();
             BridgeContext bridgeContext = containerUnit.getBridgeContext();
 
-
             jdbcTemplate.update(containerUnit.wrapCodeBlock(
                     "BEGIN " +
-                    "    FOR i IN 1.." + ITEMS_COUNT + "\n" +
-                    "            LOOP\n" +
-                    "                insert into " + SCHEMA_NAME + ".fbi_raw_" + META_TAG + " (f_id, f_payload) values (i, '{\"field\":\"test' || i || '\"}');\n" +
-                    "                insert into " + SCHEMA_NAME + ".fbi_raw_" + META_TAG + " (f_id, f_payload) values (i, 'failed');\n" +
-                    "            END LOOP;" +
-                    "END;"));
+                            "    FOR i IN 1.." + ITEMS_COUNT + "\n" +
+                            "            LOOP\n" +
+                            "                insert into " + SCHEMA_NAME + ".fbi_raw_" + META_TAG + " (f_id, f_payload) values (i, '{\"field\":\"test' || i || '\"}');\n" +
+                            "                insert into " + SCHEMA_NAME + ".fbi_raw_" + META_TAG + " (f_id, f_payload) values (i, 'failed');\n" +
+                            "            END LOOP;" +
+                            "END;"));
+
+
             containerUnit.getJdbcTemplate().update(containerUnit.wrapCodeBlock(containerUnit.findTestProcedure("EXCEPTION2")));
             ThreadPoolExecutor executor =
                     (ThreadPoolExecutor) Executors.newCachedThreadPool();
@@ -183,4 +183,19 @@ public class BridgeContextTest {
     }
 
 
+    @Test
+    void rawDataTest() {
+        for (ContainerUnit containerUnit : containerUnitList) {
+            String dbTypeName = containerUnit.findDbTypeName();
+            log.info(dbTypeName);
+            BridgeContext bridgeContext = containerUnit.getBridgeContext();
+            RawData rawData = new RawData();
+            rawData.setFId("1");
+            rawData.setFPayload("test");
+            bridgeContext.saveRawData(rawData);
+            rawData.setFPayload("test_edited");
+            bridgeContext.saveRawData(rawData);
+
+        }
+    }
 }

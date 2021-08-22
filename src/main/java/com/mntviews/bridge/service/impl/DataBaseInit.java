@@ -4,6 +4,7 @@ import com.mntviews.bridge.model.ConnectionData;
 import com.mntviews.bridge.model.MetaData;
 import com.mntviews.bridge.repository.MetaDataRepo;
 import com.mntviews.bridge.repository.MetaInitRepo;
+import com.mntviews.bridge.service.BridgeUtil;
 import com.mntviews.bridge.service.DataBaseInitService;
 import com.mntviews.bridge.service.ScriptRunner;
 import com.mntviews.bridge.service.exception.DataBaseInitServiceException;
@@ -54,7 +55,8 @@ abstract public class DataBaseInit implements DataBaseInitService {
         if (inputStream == null)
             throw new DataBaseInitServiceException(ddlCreatePath + " not found.");
         try {
-            scriptRunner.runScript(new InputStreamReader(inputStream), connectionData.getSchemaName());
+            String versionStr = BridgeUtil.BUILD_INFO.getProperty("name") + " ver. " + BridgeUtil.BUILD_INFO.getProperty("version");
+            scriptRunner.runScript(new InputStreamReader(inputStream), connectionData.getSchemaName(), versionStr);
         } catch (Exception e) {
             throw new DataBaseInitServiceException(e);
         }

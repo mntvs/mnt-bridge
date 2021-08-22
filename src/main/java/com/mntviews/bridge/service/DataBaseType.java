@@ -2,7 +2,6 @@ package com.mntviews.bridge.service;
 
 import com.mntviews.bridge.model.ConnectionData;
 import com.mntviews.bridge.model.MetaData;
-import com.mntviews.bridge.repository.impl.MetaDataRepoImpl;
 import com.mntviews.bridge.repository.impl.MetaInitOracleRepoImpl;
 import com.mntviews.bridge.repository.impl.MetaInitPostgresqlRepoImpl;
 import com.mntviews.bridge.service.impl.DataBaseInitOracleServiceImpl;

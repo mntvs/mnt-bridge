@@ -2,10 +2,13 @@ package com.mntviews.bridge.service;
 
 import com.mntviews.bridge.model.ConnectionData;
 import com.mntviews.bridge.model.MetaData;
+import com.mntviews.bridge.model.RawData;
 import com.mntviews.bridge.repository.MetaDataRepo;
 import com.mntviews.bridge.repository.RawLoopRepo;
+import com.mntviews.bridge.repository.RawRepo;
 import com.mntviews.bridge.repository.impl.MetaDataRepoImpl;
 import com.mntviews.bridge.repository.impl.RawLoopRepoImpl;
+import com.mntviews.bridge.repository.impl.RawRepoImpl;
 import com.mntviews.bridge.service.exception.BridgeContextException;
 import com.mntviews.bridge.service.impl.BridgeServiceImpl;
 import lombok.Getter;
@@ -32,7 +35,7 @@ public class BridgeContext {
     BridgeContext(Builder builder) {
         this.groupTag = builder.groupTag;
         this.metaTag = builder.metaTag;
-        this.connectionData = builder.connectionData;
+
         this.bridgeProcessing = builder.bridgeProcessing;
 
         if (builder.dataBaseType == null)
@@ -43,18 +46,31 @@ public class BridgeContext {
         if (builder.bridgeService == null) {
             MetaDataRepo metaDataRepo = new MetaDataRepoImpl();
             RawLoopRepo rawLoopRepo = new RawLoopRepoImpl();
-            this.bridgeService = new BridgeServiceImpl(rawLoopRepo, metaDataRepo);
+            RawRepo rawRepo = new RawRepoImpl();
+            this.bridgeService = new BridgeServiceImpl(rawLoopRepo, metaDataRepo, rawRepo);
         } else
             this.bridgeService = builder.bridgeService;
 
         this.schemaName = Objects.requireNonNullElse(builder.schemaName, DEFAULT_SCHEMA_NAME);
+
+        this.connectionData = new ConnectionData(builder.connectionData.getUrl(), builder.connectionData.getUserName()
+                , builder.connectionData.getPassword(), Objects.requireNonNullElse(builder.connectionData.getSchemaName()
+                , this.schemaName));
+    }
+
+    private void checkMetaData() {
+        if (metaData == null)
+            throw new BridgeContextException("Bridge context is not initialized");
     }
 
     public void execute() {
-        if (metaData != null)
-            bridgeService.execute(metaData, this.dataBaseType.getConnection(connectionData), bridgeProcessing, connectionData.getSchemaName());
-        else throw new BridgeContextException("Bridge context is not initialized");
+        checkMetaData();
+        bridgeService.execute(metaData, this.dataBaseType.getConnection(connectionData), bridgeProcessing, connectionData.getSchemaName());
+    }
 
+    public void saveRawData(RawData rawData) {
+        checkMetaData();
+        bridgeService.saveRawData(this.dataBaseType.getConnection(connectionData), metaData, rawData);
     }
 
     public void migrate(Boolean isClean) {
@@ -118,11 +134,6 @@ public class BridgeContext {
 
         public Builder withDataBaseType(DataBaseType dataBaseType) {
             this.dataBaseType = dataBaseType;
-            return this;
-        }
-
-        public Builder withFlyWayService(DataBaseInitService dataBaseInitService) {
-            this.dataBaseInitService = dataBaseInitService;
             return this;
         }
 

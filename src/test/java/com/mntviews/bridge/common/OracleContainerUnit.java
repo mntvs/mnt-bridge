@@ -1,26 +1,15 @@
 package com.mntviews.bridge.common;
 
 import com.mntviews.bridge.model.ConnectionData;
-import com.mntviews.bridge.repository.MetaDataRepo;
 import com.mntviews.bridge.service.BridgeContext;
 import com.mntviews.bridge.service.DataBaseType;
-import lombok.Getter;
-import oracle.jdbc.datasource.OracleCommonDataSource;
-import oracle.jdbc.datasource.OracleDataSource;
 import oracle.jdbc.pool.OracleConnectionPoolDataSource;
-import org.junit.jupiter.api.BeforeEach;
-import org.postgresql.ds.PGSimpleDataSource;
-import org.postgresql.jdbc2.optional.SimpleDataSource;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.testcontainers.containers.OracleContainer;
-import org.testcontainers.containers.PostgreSQLContainer;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
 
 import java.sql.SQLException;
 import java.util.Properties;
 
-//@Testcontainers
+
 public class OracleContainerUnit extends ContainerUnit {
 
     public final static String dbTypeName = "ORACLE";

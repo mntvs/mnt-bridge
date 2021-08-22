@@ -1,28 +1,5 @@
 package com.mntviews.bridge.service;
 
-/*
- * Slightly modified version of the com.ibatis.common.jdbc.ScriptRunner class
- * from the iBATIS Apache project. Only removed dependency on Resource class
- * and a constructor
- * GPSHansl, 06.08.2015: regex for delimiter, rearrange comment/delimiter detection, remove some ide warnings.
- */
-
-/*
- *  Copyright 2004 Clinton Begin
- *
- *  Licensed under the Apache License, Version 2.0 (the "License");
- *  you may not use this file except in compliance with the License.
- *  You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- *  Unless required by applicable law or agreed to in writing, software
- *  distributed under the License is distributed on an "AS IS" BASIS,
- *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *  See the License for the specific language governing permissions and
- *  limitations under the License.
- */
-
 import java.io.*;
 import java.sql.*;
 import java.text.DateFormat;
@@ -37,6 +14,7 @@ public class ScriptRunner {
 
     private static final String DEFAULT_DELIMITER = ";";
     private static final String SCHEMA_NAME_TEMPLATE = "${schemaName}";
+    private static final String VERSION_NAME_TEMPLATE = "${versionStr}";
     private static final Pattern SOURCE_COMMAND = Pattern.compile("^\\s*SOURCE\\s+(.*?)\\s*$", Pattern.CASE_INSENSITIVE);
 
     /**
@@ -51,14 +29,14 @@ public class ScriptRunner {
     private final boolean autoCommit;
 
     @SuppressWarnings("UseOfSystemOutOrSystemErr")
-    private PrintWriter logWriter = null;
+    private final PrintWriter logWriter = null;
     @SuppressWarnings("UseOfSystemOutOrSystemErr")
     private PrintWriter errorLogWriter = null;
 
     private String delimiter = DEFAULT_DELIMITER;
     private boolean fullLineDelimiter = false;
 
-    private String userDirectory = System.getProperty("user.dir");
+    private final String userDirectory = System.getProperty("user.dir");
 
     public ScriptRunner(Connection connection, boolean autoCommit,
                         boolean stopOnError) {
@@ -80,14 +58,14 @@ public class ScriptRunner {
      *
      * @param reader - the source of the script
      */
-    public void runScript(Reader reader, String schemaName) throws IOException, SQLException {
+    public void runScript(Reader reader, String schemaName, String versionStr) throws IOException, SQLException {
         try {
             boolean originalAutoCommit = connection.getAutoCommit();
             try {
                 if (originalAutoCommit != this.autoCommit) {
                     connection.setAutoCommit(this.autoCommit);
                 }
-                runScript(connection, reader, schemaName);
+                runScript(connection, reader, schemaName, versionStr);
             } finally {
                 connection.setAutoCommit(originalAutoCommit);
             }
@@ -107,14 +85,14 @@ public class ScriptRunner {
      * @throws SQLException if any SQL errors occur
      * @throws IOException  if there is an error reading from the Reader
      */
-    private void runScript(Connection conn, Reader reader, String schemaName) throws IOException,
+    private void runScript(Connection conn, Reader reader, String schemaName, String versionStr) throws IOException,
             SQLException {
         StringBuffer command = null;
         try {
             LineNumberReader lineReader = new LineNumberReader(reader);
             String line;
             while ((line = lineReader.readLine()) != null) {
-                line = line.replace(SCHEMA_NAME_TEMPLATE, schemaName);
+                line = line.replace(SCHEMA_NAME_TEMPLATE, schemaName).replace(VERSION_NAME_TEMPLATE, versionStr);
                 if (command == null) {
                     command = new StringBuffer();
                 }
@@ -127,17 +105,14 @@ public class ScriptRunner {
                     setDelimiter(delimMatch.group(2), false);
                 } else if (trimmedLine.startsWith("--")) {
                     println(trimmedLine);
-                } else if (trimmedLine.length() < 1
-                        || trimmedLine.startsWith("--")) {
-                    // Do nothing
                 } else if (!fullLineDelimiter
                         && trimmedLine.endsWith(getDelimiter())
                         || fullLineDelimiter
                         && trimmedLine.equals(getDelimiter())) {
-                    command.append(line.substring(0, line
-                            .lastIndexOf(getDelimiter())));
+                    command.append(line, 0, line
+                            .lastIndexOf(getDelimiter()));
                     command.append(" ");
-                    this.execCommand(conn, command, lineReader, schemaName);
+                    this.execCommand(conn, command, lineReader, schemaName, versionStr);
                     command = null;
                 } else {
                     command.append(line);
@@ -145,7 +120,7 @@ public class ScriptRunner {
                 }
             }
             if (command != null) {
-                this.execCommand(conn, command, lineReader, schemaName);
+                this.execCommand(conn, command, lineReader, schemaName, versionStr);
             }
             if (!autoCommit) {
                 conn.commit();
@@ -159,7 +134,7 @@ public class ScriptRunner {
     }
 
     private void execCommand(Connection conn, StringBuffer command,
-                             LineNumberReader lineReader, String schemaName) throws IOException, SQLException {
+                             LineNumberReader lineReader, String schemaName,String versionStr) throws IOException, SQLException {
 
         if (command.length() == 0) {
             return;
@@ -167,16 +142,16 @@ public class ScriptRunner {
 
         Matcher sourceCommandMatcher = SOURCE_COMMAND.matcher(command);
         if (sourceCommandMatcher.matches()) {
-            this.runScriptFile(conn, sourceCommandMatcher.group(1), schemaName);
+            this.runScriptFile(conn, sourceCommandMatcher.group(1), schemaName, versionStr);
             return;
         }
 
         this.execSqlCommand(conn, command, lineReader);
     }
 
-    private void runScriptFile(Connection conn, String filepath, String schemaName) throws IOException, SQLException {
+    private void runScriptFile(Connection conn, String filepath, String schemaName,String versionStr) throws IOException, SQLException {
         File file = new File(userDirectory, filepath);
-        this.runScript(conn, new BufferedReader(new FileReader(file)), schemaName);
+        this.runScript(conn, new BufferedReader(new FileReader(file)), schemaName, versionStr);
     }
 
     private void execSqlCommand(Connection conn, StringBuffer command,
@@ -224,7 +199,7 @@ public class ScriptRunner {
         try {
             statement.close();
         } catch (Exception e) {
-            // Ignore to workaround a bug in Jakarta DBCP
+            System.err.println(e.getMessage());
         }
     }
 

@@ -1,9 +1,11 @@
 package com.mntviews.bridge.service;
 
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
+import java.io.*;
+import java.util.Properties;
 
 public class BridgeUtil {
+    public static Properties BUILD_INFO;
+
     public static String findNameServer() {
         String s;
         try {
@@ -17,6 +19,15 @@ public class BridgeUtil {
             return "";
         } catch (Exception e) {
             return "";
+        }
+    }
+
+    static {
+        try (InputStream inputStream = BridgeUtil.class.getClassLoader().getResourceAsStream("build-info.properties")) {
+            BUILD_INFO = new Properties();
+            BUILD_INFO.load(inputStream);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
         }
     }
 }

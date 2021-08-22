@@ -10,6 +10,8 @@ create table ${schemaName}.bridge_group
     schema_name text      not null
 );
 
+comment on table ${schemaName}.bridge_group is 'Contains groups descriptions ${versionStr}';
+
 create unique index bridge_group_tag_uindex
     on ${schemaName}.bridge_group (tag);
 
@@ -25,7 +27,9 @@ create table ${schemaName}.bridge_meta
             references ${schemaName}.bridge_group,
     constraint bridge_meta_uk_1
         unique (tag, group_id)
-);
+)
+;
+comment on table ${schemaName}.bridge_meta is 'Contains meta information ${versionStr}';
 
 create view ${schemaName}.bridge_meta_v
             (group_tag, meta_tag, group_id, meta_id, schema_name, raw_name, buf_name, prc_exec_name, raw_full_name,
@@ -67,6 +71,8 @@ FROM (SELECT tt1.group_tag,
             FROM ${schemaName}.bridge_meta bm
                      JOIN ${schemaName}.bridge_group bg ON bg.id = bm.group_id) tt1) tt2;
 
+comment on view ${schemaName}.bridge_meta_v is 'Meta data view ${versionStr}';
+
 delimiter ++
 
 create function ${schemaName}.fnc_raw_loop(raw_full_name TEXT) returns refcursor
@@ -76,6 +82,8 @@ $$
 DECLARE
     c_raw refcursor := 'raw_cursor';
 BEGIN
+    /* Returns cursor for loop for the raw table ${versionStr} */
+
     OPEN c_raw FOR EXECUTE format('select id from %s where s_action=0 order by f_date desc, id desc',
                                   raw_full_name);
     RETURN c_raw;
@@ -99,6 +107,7 @@ declare
     l_meta_id            BIGINT;
     l_schemaName         TEXT;
 begin
+    /* Creates db objects ${versionStr} */
 
     begin
         select id into strict l_group_id from ${schemaName}.bridge_group where tag = a_group_tag;
@@ -243,6 +252,7 @@ declare
     l_group_id           bigint;
     l_meta_count         integer;
 begin
+    /* Drops db objects ${versionStr} */
     begin
         select raw_full_name, buf_full_name, prc_exec_full_name, group_id
         into strict l_raw_full_name, l_buf_full_name, l_prc_exec_full_name,l_group_id
@@ -281,7 +291,6 @@ as
 $$
 declare
     l_buf_id        bigint;
-    l_buf_f_date    timestamp with time zone;
     l_raw_id        bigint;
     l_raw_f_id      text;
     l_raw_f_payload text;
@@ -289,6 +298,8 @@ declare
     l_raw_s_status  smallint;
     l_update_count  integer;
 begin
+    /* Executes before process ${versionStr} */
+
     execute 'select id,f_id,f_payload,f_date,s_status from ' || a_raw_full_name ||
             ' where s_action=0 and id=$1 for update skip locked'
         using a_raw_id into l_raw_id,l_raw_f_id,l_raw_f_payload,l_raw_f_date,l_raw_s_status;
@@ -331,6 +342,8 @@ create procedure ${schemaName}.prc_post_process(IN a_raw_id bigint, IN a_raw_ful
 as
 $$
 begin
+    /* Executes after process ${versionStr} */
+
     if a_processed_status <> 0 then
         execute 'update ' || a_raw_full_name ||
                 ' set (s_status,s_msg,s_date,s_action, s_counter, f_msg)=($1,$2,$3,$4,s_counter+1,$5) where id=$6'
@@ -355,15 +368,14 @@ declare
     l_raw_full_name      text;
     l_buf_full_name      text;
     l_prc_exec_full_name text;
-    l_raw_id             bigint;
 begin
+    /* Start processing ${versionStr} */
 
     select RAW_LOOP_QUERY, raw_full_name, buf_full_name, prc_exec_full_name
     into l_raw_loop_query,l_raw_full_name,l_buf_full_name,l_prc_exec_full_name
     from ${schemaName}.BRIDGE_META_V
     where GROUP_tag = a_group_tag
       and META_TAG = a_meta_tag;
-
 
     for c_raw_rec in execute l_raw_loop_query
         loop

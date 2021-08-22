@@ -12,6 +12,8 @@ create table ${schemaName}.bridge_group
     schema_name varchar2(30)   not null
 );
 
+comment on table ${schemaName}.bridge_group is 'Contains groups descriptions ${versionStr}';
+
 create unique index ${schemaName}.bridge_group_tag_uindex
     on ${schemaName}.bridge_group (tag);
 
@@ -29,7 +31,7 @@ create table ${schemaName}.bridge_meta
         unique (tag, group_id)
 );
 
-
+comment on table ${schemaName}.bridge_meta is 'Contains meta information ${versionStr}';
 
 create view ${schemaName}.bridge_meta_v
             (group_tag, meta_tag, group_id, meta_id, schema_name, raw_name, buf_name, prc_exec_name, raw_full_name,
@@ -71,12 +73,16 @@ FROM (SELECT tt1.group_tag,
             FROM mnt_bridge.bridge_meta bm
                      JOIN mnt_bridge.bridge_group bg ON bg.id = bm.group_id) tt1) tt2;
 
+comment on table ${schemaName}.bridge_meta_v is 'Meta data view ${versionStr}';
+
+
 delimiter $$
 
 CREATE OR REPLACE FUNCTION ${schemaName}.fnc_raw_loop(raw_full_name VARCHAR2) RETURN SYS_REFCURSOR
 AS
     c_raw SYS_REFCURSOR;
 BEGIN
+    /* Returns cursor for loop for the raw table ${versionStr} */
     open c_raw for 'select id from ' || raw_full_name || ' where s_action=0 order by f_date asc, id asc';
     RETURN c_raw;
 END;
@@ -88,6 +94,7 @@ create trigger ${schemaName}.TRG_BRIDGE_GROUP_PK
     for each row
     when (new.id IS NULL)
 BEGIN
+    /* Sequence trigger ${versionStr} */
     SELECT ${schemaName}.SQ_BRIDGE_GROUP.nextval INTO :NEW.id FROM DUAL;
 END;
 $$
@@ -98,6 +105,7 @@ create trigger ${schemaName}.TRG_BRIDGE_META_PK
     for each row
     when (new.id IS NULL)
 BEGIN
+    /* Sequence trigger ${versionStr} */
     SELECT ${schemaName}.SQ_BRIDGE_META.nextval INTO :NEW.id FROM DUAL;
 END;
 
@@ -120,7 +128,11 @@ as
     l_meta_id            NUMBER;
     l_is_user_exists     NUMBER;
     l_count              NUMBER;
+    l_time_created       VARCHAR2(100);
 begin
+    /* Creates db objects ${versionStr} */
+
+    l_time_created := TO_CHAR(sysdate,'yyyy-mm-dd hh24:mi:ss');
 
     begin
         select id into l_group_id from ${schemaName}.bridge_group where tag = a_group_tag;
@@ -179,6 +191,10 @@ begin
                           ')';
     end if;
 
+    EXECUTE IMMEDIATE 'COMMENT ON TABLE ' || l_raw_full_name ||
+                      ' IS ''Raw table. Generated ' || l_time_created || ' ${versionStr}''';
+
+
     EXECUTE IMMEDIATE 'COMMENT ON COLUMN ' || l_raw_full_name ||
                       '.s_action is ''Current action. 0 - ready for processing, 1 - will not precessed''';
 
@@ -225,6 +241,8 @@ begin
                           ')';
     end if;
 
+    EXECUTE IMMEDIATE 'COMMENT ON TABLE ' || l_buf_full_name ||
+                      ' IS ''Buf table. Generated ' || l_time_created || ' ${versionStr}''';
 
     l_name := l_buf_name || '_f_id_index';
     SELECT count(*)
@@ -293,8 +311,9 @@ begin
                           ' on ' || l_schema_name || '.' || l_buf_name ||
                           ' for each row' ||
                           ' when (new.id IS NULL)' ||
-                          ' BEGIN' ||
-                          ' SELECT ' || l_schema_name || '.' || 'SQ_' || l_buf_name ||
+                          ' BEGIN
+                            /* Generated ' || l_time_created || ' ${versionStr} */
+                            SELECT ' || l_schema_name || '.' || 'SQ_' || l_buf_name ||
                           '.nextval INTO :NEW.id FROM DUAL;' ||
                           ' END;';
     end if;
@@ -313,8 +332,9 @@ begin
                           ' on ' || l_schema_name || '.' || l_raw_name ||
                           ' for each row' ||
                           ' when (new.id IS NULL)' ||
-                          ' BEGIN' ||
-                          ' SELECT ' || l_schema_name || '.' || 'SQ_' || l_raw_name ||
+                          ' BEGIN
+                            /* Generated ' || l_time_created || ' ${versionStr} */
+                            SELECT ' || l_schema_name || '.' || 'SQ_' || l_raw_name ||
                           '.nextval INTO :NEW.id FROM DUAL;' ||
                           ' END;';
     end if;
@@ -333,6 +353,7 @@ begin
                 as
                     l_sqlerrm VARCHAR2(2000);
                 begin
+                /* Generated ' || l_time_created || ' ${versionStr} */
                 null;
         exception when others then
                 l_sqlerrm:=sqlerrm;
@@ -361,6 +382,7 @@ as
     l_count              NUMBER;
     l_name               VARCHAR2(30);
 begin
+    /* Drops db objects ${versionStr} */
     begin
         select raw_full_name,
                buf_full_name,
@@ -464,15 +486,13 @@ create or replace procedure ${schemaName}.prc_pre_process(a_raw_id IN NUMBER, a_
                                                           a_error_message IN OUT VARCHAR2)
 as
     l_buf_id        NUMBER;
-    l_buf_f_date    DATE;
     l_raw_id        NUMBER;
     l_raw_f_id      VARCHAR2(2000);
     l_raw_f_payload CLOB;
     l_raw_f_date    DATE;
     l_raw_s_status  NUMBER;
-    l_count         NUMBER;
 begin
-
+    /* Executes before process ${versionStr} */
     execute IMMEDIATE 'select id,f_id,f_payload,f_date,s_status from ' || a_raw_full_name ||
                       ' where s_action=0 and id=:1 for update skip locked'
         into l_raw_id,l_raw_f_id,l_raw_f_payload,l_raw_f_date,l_raw_s_status
@@ -513,6 +533,7 @@ create or replace procedure ${schemaName}.prc_post_process(a_raw_id IN NUMBER, a
                                                            a_msg IN CLOB default NULL)
 as
 begin
+    /* Executes after process ${versionStr} */
     if a_processed_status <> 0 then
         execute immediate 'update ' || a_raw_full_name ||
                           ' set (s_status,s_msg,s_date,s_action, s_counter, f_msg)=(select :1,:2,:3,:4,s_counter+1,:5 from dual) where id=:6'
@@ -536,14 +557,13 @@ as
     c_raw_rec            cur_typ;
     l_raw_id             NUMBER;
 begin
-
+    /* Start processing ${versionStr} */
     select RAW_LOOP_QUERY, raw_full_name, buf_full_name, prc_exec_full_name
     into l_raw_loop_query,l_raw_full_name,l_buf_full_name,l_prc_exec_full_name
     from ${schemaName}.BRIDGE_META_V
     where GROUP_tag = a_group_tag
       and META_TAG = a_meta_tag;
     OPEN c_raw_rec FOR l_raw_loop_query;
-
 
     loop
         FETCH c_raw_rec INTO l_raw_id;

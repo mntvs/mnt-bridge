@@ -14,12 +14,12 @@ public class ConnectionData {
     }
 
     public ConnectionData(String url, String userName, String password) {
-        this(url, userName, password, BridgeContext.DEFAULT_SCHEMA_NAME);
+        this(url, userName, password, null);
     }
 
 
-    String url;
-    String userName;
-    String password;
-    String schemaName;
+    final String url;
+    final String userName;
+    final String password;
+    final String schemaName;
 }

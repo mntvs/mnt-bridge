@@ -44,7 +44,6 @@ public class DataBaseProcessingUnit {
         postgresContainerUnit.getBridgeContext().clear();
         postgresContainerUnit.getBridgeContext().init();
         containerUnitList.add(postgresContainerUnit);
-
     }
 
     @AfterEach
@@ -75,7 +74,6 @@ public class DataBaseProcessingUnit {
             assertEquals(ITEMS_COUNT, successCount, dbTypeName + ": Success count raw");
             Integer successCountBuf = jdbcTemplate.queryForObject("select count(*) from " + SCHEMA_NAME + ".fbi_buf_" + META_TAG, Integer.class);
             assertEquals(ITEMS_COUNT, successCountBuf, dbTypeName + ": Success count buf");
-
         }
     }
 
