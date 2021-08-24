@@ -19,10 +19,11 @@ public class RawLoopRepoImpl implements RawLoopRepo {
      * Main loop to process raw queue
      * TODO: Modify to start with only provided raw_id
      * TODO: Option to change order
-     * @param connection opened connection with db
-     * @param metaData system data received from db
+     *
+     * @param connection       opened connection with db
+     * @param metaData         system data received from db
      * @param bridgeProcessing outer procedure to process current raw
-     * @param schemaName schema name for system system objects
+     * @param schemaName       schema name for system system objects
      */
     @Override
     public void rawLoop(Connection connection, MetaData metaData, BridgeProcessing bridgeProcessing, String schemaName) {
@@ -61,7 +62,7 @@ public class RawLoopRepoImpl implements RawLoopRepo {
     @Override
     public void preProcess(Connection connection, ProcessData processData, String schemaName) {
 
-        try (CallableStatement prcPreProcess = connection.prepareCall(String.format("{ call %s.prc_pre_process(?,?,?,?,?,?) }", schemaName))) {
+        try (CallableStatement prcPreProcess = connection.prepareCall(String.format("{ call %s.prc_pre_process(?,?,?,?,?,?,?) }", schemaName))) {
 
             prcPreProcess.setLong(1, processData.getRawId());
             prcPreProcess.setString(2, processData.getMetaData().getRawFullName());
@@ -69,14 +70,17 @@ public class RawLoopRepoImpl implements RawLoopRepo {
             prcPreProcess.setString(4, processData.getMetaData().getPrcExecFullName());
             prcPreProcess.setInt(5, processData.getProcessedStatus());
             prcPreProcess.setString(6, processData.getErrorMessage());
+            prcPreProcess.setNull(7, Types.BIGINT);
 
             prcPreProcess.registerOutParameter(5, Types.INTEGER);
             prcPreProcess.registerOutParameter(6, Types.VARCHAR);
+            prcPreProcess.registerOutParameter(7, Types.BIGINT);
 
             prcPreProcess.execute();
 
             processData.setProcessedStatus(prcPreProcess.getInt(5));
             processData.setErrorMessage(prcPreProcess.getString(6));
+            processData.setBufId(prcPreProcess.getLong(7));
         } catch (Exception e) {
             throw new PreProcessRepoException(e);
         }

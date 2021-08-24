@@ -2,6 +2,7 @@ package com.mntviews.bridge.repository;
 
 import com.mntviews.bridge.model.RawData;
 
+import java.math.BigDecimal;
 import java.sql.Connection;
 
 public interface RawRepo {

@@ -8,7 +8,7 @@ import java.time.OffsetDateTime;
 
 @Data
 public class RawData {
-    BigDecimal id;
+    Long id;
     String fId;
     OffsetDateTime fDate;
     OffsetDateTime sDate;

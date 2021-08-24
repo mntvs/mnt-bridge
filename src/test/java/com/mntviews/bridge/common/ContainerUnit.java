@@ -22,7 +22,7 @@ public abstract class ContainerUnit {
     public final static String TEST_EXCEPTION_TEXT= "Test exception";
     public final static Integer ITEMS_COUNT = 100;
 
-    public final static Integer TASK_COUNT = 50;
+    public final static Integer TASK_COUNT = 20;
 
     @Getter
     protected JdbcTemplate jdbcTemplate;

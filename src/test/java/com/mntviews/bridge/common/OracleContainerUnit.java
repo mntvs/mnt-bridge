@@ -29,7 +29,7 @@ public class OracleContainerUnit extends ContainerUnit {
         bridgeContext = BridgeContext
                 .custom(GROUP_TAG, META_TAG, connectionData)
                 .withBridgeProcessing((connection, processData) -> {
-                    if (processData.getRawId() < 0)
+                    if (processData.getRawId()%2== 0)
                         throw new RuntimeException(TEST_EXCEPTION_TEXT);
                 })
                 .withSchemaName(SCHEMA_NAME)

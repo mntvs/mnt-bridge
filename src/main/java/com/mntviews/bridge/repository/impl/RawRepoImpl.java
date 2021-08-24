@@ -6,6 +6,7 @@ import com.mntviews.bridge.repository.RawRepo;
 import com.mntviews.bridge.repository.exception.MetaDataRepoException;
 import com.mntviews.bridge.repository.exception.RawRepoException;
 
+import java.math.BigDecimal;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -35,7 +36,7 @@ public class RawRepoImpl implements RawRepo {
 
                     try (ResultSet generatedKeys = stmt.getGeneratedKeys()) {
                         if (generatedKeys.next()) {
-                            rawData.setId(generatedKeys.getBigDecimal(1));
+                            rawData.setId(generatedKeys.getLong(1));
                         } else {
                             throw new RawRepoException("Insert raw error");
                         }
@@ -51,7 +52,7 @@ public class RawRepoImpl implements RawRepo {
                 try (PreparedStatement stmt = connection
                         .prepareStatement("UPDATE " + rawFullName + " SET s_action=? WHERE id=?")) {
                     stmt.setByte(1, rawData.getSAction());
-                    stmt.setBigDecimal(2, rawData.getId());
+                    stmt.setLong(2, rawData.getId());
                     int count = stmt.executeUpdate();
 
                     if (count == 0) {
@@ -81,7 +82,7 @@ public class RawRepoImpl implements RawRepo {
 
                 while (rs.next()) {
                     RawData rawData = new RawData();
-                    rawData.setId(rs.getBigDecimal("id"));
+                    rawData.setId(rs.getLong("id"));
                     rawData.setFId(rs.getString("f_id"));
                     rawData.setFDate(rs.getObject("f_date", OffsetDateTime.class));
                     rawData.setSDate(rs.getObject("s_date", OffsetDateTime.class));

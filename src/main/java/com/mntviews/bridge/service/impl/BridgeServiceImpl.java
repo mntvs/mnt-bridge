@@ -4,6 +4,7 @@ import com.mntviews.bridge.model.BufData;
 import com.mntviews.bridge.model.ConnectionData;
 import com.mntviews.bridge.model.MetaData;
 import com.mntviews.bridge.model.RawData;
+import com.mntviews.bridge.repository.BufRepo;
 import com.mntviews.bridge.repository.MetaDataRepo;
 import com.mntviews.bridge.repository.RawLoopRepo;
 import com.mntviews.bridge.repository.RawRepo;
@@ -12,6 +13,7 @@ import com.mntviews.bridge.service.BridgeService;
 import com.mntviews.bridge.service.exception.BridgeServiceException;
 import lombok.RequiredArgsConstructor;
 
+import java.math.BigDecimal;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
@@ -23,6 +25,7 @@ public class BridgeServiceImpl implements BridgeService {
     private final RawLoopRepo rawLoopRepo;
     private final MetaDataRepo metaDataRepo;
     private final RawRepo rawRepo;
+    private final BufRepo bufRepo;
 
     @Override
     public void execute(MetaData metaData, Connection connection, BridgeProcessing bridgeProcessing, String schemaName) {
@@ -42,7 +45,17 @@ public class BridgeServiceImpl implements BridgeService {
 
     @Override
     public RawData findRawDataById(Connection connection, MetaData metaData, Long id) {
-        return null;
+        return rawRepo.findRawDataById(connection, metaData.getRawFullName(), id);
+    }
+
+    @Override
+    public BufData findBufDataById(Connection connection, MetaData metaData, Long id) {
+        return bufRepo.findBufDataById(connection, metaData.getBufFullName(), id);
+    }
+
+    @Override
+    public BufData findBufDataByRawId(Connection connection, MetaData metaData, Long id) {
+        return bufRepo.findBufDataByRawId(connection, metaData.getBufFullName(), id);
     }
 
     @Override

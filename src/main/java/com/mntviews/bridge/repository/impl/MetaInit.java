@@ -14,7 +14,7 @@ abstract public class MetaInit implements MetaInitRepo {
     public void init(Connection connection, String groupTag, String metaTag, String schemaName, String schemaMetaName) {
 
         try {
-            try (CallableStatement callableStatement = connection.prepareCall(String.format("call %s.prc_create_meta_by_tag(?,?,?)", BridgeContext.DEFAULT_SCHEMA_NAME))) {
+            try (CallableStatement callableStatement = connection.prepareCall(String.format("call %s.prc_create_meta_by_tag(?,?,?)", schemaMetaName))) {
                 callableStatement.setString(1, groupTag);
                 callableStatement.setString(2, metaTag);
                 callableStatement.setString(3, schemaName);
@@ -29,7 +29,7 @@ abstract public class MetaInit implements MetaInitRepo {
 
     @Override
     public void clear(Connection connection, String groupTag, String metaTag, String schemaMetaName) {
-        try (CallableStatement callableStatement = connection.prepareCall(String.format("call %s.prc_drop_meta_by_tag(?,?)", BridgeContext.DEFAULT_SCHEMA_NAME))) {
+        try (CallableStatement callableStatement = connection.prepareCall(String.format("call %s.prc_drop_meta_by_tag(?,?)", schemaMetaName))) {
             callableStatement.setString(1, groupTag);
             callableStatement.setString(2, metaTag);
             callableStatement.executeUpdate();

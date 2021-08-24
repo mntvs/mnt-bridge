@@ -28,7 +28,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static com.mntviews.bridge.common.ContainerUnit.*;
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.isA;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.doNothing;
@@ -96,7 +96,7 @@ public class BridgeContextTest {
             BridgeContext bridgeContext = containerUnit.getBridgeContext();
             jdbcTemplate.update(containerUnit.wrapCodeBlock(
                     "BEGIN " +
-                            "                insert into " + SCHEMA_NAME + ".fbi_raw_" + META_TAG + " (id, f_id, f_payload) values (-1, 1, '{\"field\":\"test\"}');\n" +
+                            "                insert into " + SCHEMA_NAME + ".fbi_raw_" + META_TAG + " (id, f_id, f_payload) values (1, 1, '{\"field\":\"test\"}');\n" +
                             "                insert into " + SCHEMA_NAME + ".fbi_raw_" + META_TAG + " (id, f_id, f_payload) values (2, 2, '{\"field\":\"test2\"}');\n" +
                             "END;"));
 
@@ -106,16 +106,16 @@ public class BridgeContextTest {
                 @Override
                 public Void extractData(ResultSet rs) throws SQLException, DataAccessException {
                     while (rs.next()) {
-                        if (rs.getLong(1) == -1) {
+                        if (rs.getLong(1) %2 == 0) {
                             assertEquals(-3, rs.getLong(2));
                             assertEquals(0, rs.getLong(3));
                             assertEquals(ContainerUnit.TEST_EXCEPTION_TEXT, rs.getString(4));
                         }
 
-                        if (rs.getLong(1) == 1) {
+                        if (rs.getLong(1) %2 != 0) {
                             assertEquals(1, rs.getLong(2));
                             assertEquals(1, rs.getLong(3));
-                            assertEquals("", rs.getString(4));
+                            assertNull(rs.getString(4));
                         }
                     }
                     return null;
@@ -195,7 +195,9 @@ public class BridgeContextTest {
             bridgeContext.saveRawData(rawData);
             rawData.setFPayload("test_edited");
             bridgeContext.saveRawData(rawData);
-
+            assertEquals("test",bridgeContext.findRawDataById(rawData.getId()).getFPayload());
+            bridgeContext.execute();
+            assertNotNull(bridgeContext.findBufDataById(bridgeContext.findBufDataByRawId(rawData.getId()).getId()));
         }
     }
 }

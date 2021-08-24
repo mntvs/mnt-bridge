@@ -4,7 +4,7 @@ create sequence ${schemaName}.sq_bridge_meta;
 
 create table ${schemaName}.bridge_group
 (
-    id          number         not null
+    id          number(19)         not null
         constraint bridge_group_pk
             primary key,
     tag         varchar2(1000) not null,
@@ -19,12 +19,12 @@ create unique index ${schemaName}.bridge_group_tag_uindex
 
 create table ${schemaName}.bridge_meta
 (
-    id       number         not null
+    id       number(19)         not null
         constraint bridge_meta_pk
             primary key,
     tag      varchar2(1000) not null,
     note     varchar2(4000),
-    group_id number         not null
+    group_id number(19)         not null
         constraint bridge_meta_group_fk
             references bridge_group,
     constraint bridge_meta_uk_1
@@ -124,8 +124,8 @@ as
     l_prc_exec_name      VARCHAR2(100);
     l_name               VARCHAR2(100);
     l_schema_name        mnt_bridge.bridge_group.schema_name%TYPE;
-    l_group_id           NUMBER;
-    l_meta_id            NUMBER;
+    l_group_id           NUMBER(19);
+    l_meta_id            NUMBER(19);
     l_is_user_exists     NUMBER;
     l_count              NUMBER;
     l_time_created       VARCHAR2(100);
@@ -174,7 +174,7 @@ begin
       AND OBJECT_TYPE = 'TABLE';
 
     if l_count = 0 then
-        EXECUTE IMMEDIATE 'CREATE TABLE ' || l_raw_full_name || ' (id NUMBER PRIMARY KEY,' ||
+        EXECUTE IMMEDIATE 'CREATE TABLE ' || l_raw_full_name || ' (id NUMBER(19) PRIMARY KEY,' ||
                           ' f_oper NUMBER DEFAULT 0 CONSTRAINT ' || l_raw_name ||
                           '_oper_ch CHECK (f_oper IN (0,1))  NOT NULL,' ||
                           ' f_payload CLOB,' ||
@@ -228,14 +228,14 @@ begin
       AND OBJECT_TYPE = 'TABLE';
 
     if l_count = 0 then
-        EXECUTE IMMEDIATE 'CREATE TABLE ' || l_buf_full_name || ' (' || 'id NUMBER PRIMARY KEY,' ||
+        EXECUTE IMMEDIATE 'CREATE TABLE ' || l_buf_full_name || ' (' || 'id NUMBER(19) PRIMARY KEY,' ||
                           ' f_oper NUMBER DEFAULT 0 CONSTRAINT ' || l_buf_name ||
                           '_s_oper_ch CHECK (f_oper IN (0,1)) NOT NULL ,' ||
                           ' f_payload CLOB,' ||
                           ' s_payload CLOB,' ||
                           ' f_date DATE DEFAULT SYSDATE NOT NULL ,' ||
                           ' s_date DATE DEFAULT SYSDATE NOT NULL ,' ||
-                          ' f_raw_id NUMBER NOT NULL,' ||
+                          ' f_raw_id NUMBER(19) NOT NULL,' ||
                           ' f_id VARCHAR2(2000) NOT NULL,' ||
                           ' s_counter NUMBER DEFAULT 0 NOT NULL' ||
                           ')';
@@ -349,7 +349,7 @@ begin
 
     if l_count = 0 then
         EXECUTE IMMEDIATE
-                'create procedure ' || l_prc_exec_full_name || '(a_raw_id number, a_buf_id number)
+                'create procedure ' || l_prc_exec_full_name || '(a_raw_id NUMBER, a_buf_id NUMBER)
                 as
                     l_sqlerrm VARCHAR2(2000);
                 begin
@@ -483,15 +483,18 @@ create or replace procedure ${schemaName}.prc_pre_process(a_raw_id IN NUMBER, a_
                                                           a_buf_full_name IN VARCHAR2,
                                                           a_prc_exec_full_name IN VARCHAR2,
                                                           a_processed_status IN OUT NUMBER,
-                                                          a_error_message IN OUT VARCHAR2)
+                                                          a_error_message IN OUT VARCHAR2,
+                                                          a_buf_id OUT NUMBER)
 as
-    l_buf_id        NUMBER;
-    l_raw_id        NUMBER;
+    l_buf_id        NUMBER(19);
+    l_raw_id        NUMBER(19);
     l_raw_f_id      VARCHAR2(2000);
     l_raw_f_payload CLOB;
     l_raw_f_date    DATE;
     l_raw_s_status  NUMBER;
 begin
+    a_buf_id := null;
+
     /* Executes before process ${versionStr} */
     execute IMMEDIATE 'select id,f_id,f_payload,f_date,s_status from ' || a_raw_full_name ||
                       ' where s_action=0 and id=:1 for update skip locked'
@@ -508,6 +511,7 @@ begin
 
     if SQL%ROWCOUNT > 0 then
         execute immediate 'begin ' || a_prc_exec_full_name || ' (:1,:2); end;' using l_raw_id,l_buf_id;
+        a_buf_id := l_buf_id;
         l_raw_s_status := 1; -- Success
     else
         l_raw_s_status := 5; -- Skiped
@@ -555,7 +559,8 @@ as
     l_prc_exec_full_name VARCHAR2(100);
     TYPE cur_typ IS REF CURSOR;
     c_raw_rec            cur_typ;
-    l_raw_id             NUMBER;
+    l_raw_id             NUMBER(19);
+    l_buf_id             NUMBER(19);
 begin
     /* Start processing ${versionStr} */
     select RAW_LOOP_QUERY, raw_full_name, buf_full_name, prc_exec_full_name
@@ -572,7 +577,7 @@ begin
         l_error_message := NULL;
         l_processed_status := NULL;
         ${schemaName}.prc_pre_process(l_raw_id, l_raw_full_name, l_buf_full_name,
-                                      l_prc_exec_full_name, l_processed_status, l_error_message);
+                                      l_prc_exec_full_name, l_processed_status, l_error_message, l_buf_id);
 
         ${schemaName}.prc_post_process(l_raw_id, l_raw_full_name, l_processed_status, l_error_message, a_msg);
 

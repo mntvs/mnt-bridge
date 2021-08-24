@@ -283,9 +283,9 @@ $$;
 
 ++
 
-create procedure ${schemaName}.prc_pre_process(IN a_raw_id bigint, IN a_raw_full_name TEXT, IN a_buf_full_name TEXT,
-                                               a_prc_exec_full_name TEXT, INOUT a_processed_status integer,
-                                               INOUT a_error_message text)
+create procedure ${schemaName}.prc_pre_process(IN a_raw_id BIGINT, IN a_raw_full_name TEXT, IN a_buf_full_name TEXT,
+                                               a_prc_exec_full_name TEXT, INOUT a_processed_status INTEGER,
+                                               INOUT a_error_message TEXT, INOUT a_buf_id BIGINT)
     language plpgsql
 as
 $$
@@ -300,6 +300,7 @@ declare
 begin
     /* Executes before process ${versionStr} */
 
+    a_buf_id := null;
     execute 'select id,f_id,f_payload,f_date,s_status from ' || a_raw_full_name ||
             ' where s_action=0 and id=$1 for update skip locked'
         using a_raw_id into l_raw_id,l_raw_f_id,l_raw_f_payload,l_raw_f_date,l_raw_s_status;
@@ -316,6 +317,7 @@ begin
 
             if l_update_count>0 then
                 execute 'call ' || a_prc_exec_full_name || '($1,$2)' using l_raw_id,l_buf_id;
+                a_buf_id := l_buf_id;
                 l_raw_s_status := 1; -- Success
             else
                 l_raw_s_status := 5; -- Skipped
@@ -359,7 +361,6 @@ create procedure ${schemaName}.prc_start_task(a_group_tag text, a_meta_tag text,
 as
 $$
 declare
-
     c_raw_rec            record;
     l_count              integer := 0;
     l_error_message      text;
@@ -368,6 +369,7 @@ declare
     l_raw_full_name      text;
     l_buf_full_name      text;
     l_prc_exec_full_name text;
+    l_buf_id             bigint;
 begin
     /* Start processing ${versionStr} */
 
@@ -384,7 +386,7 @@ begin
             l_processed_status := NULL;
 
             call ${schemaName}.prc_pre_process(c_raw_rec.id, l_raw_full_name, l_buf_full_name,
-                                 l_prc_exec_full_name, l_processed_status, l_error_message);
+                                 l_prc_exec_full_name, l_processed_status, l_error_message, l_buf_id);
 
             call ${schemaName}.prc_post_process(c_raw_rec.id, l_raw_full_name, l_processed_status, l_error_message, a_msg);
 

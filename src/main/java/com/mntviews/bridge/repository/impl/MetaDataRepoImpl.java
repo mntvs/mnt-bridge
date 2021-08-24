@@ -23,8 +23,8 @@ public class MetaDataRepoImpl implements MetaDataRepo {
 
                 while (rs.next()) {
                     MetaData metaData = new MetaData();
-                    metaData.setMetaId(rs.getLong("meta_id"));
-                    metaData.setGroupId(rs.getLong("group_id"));
+                    metaData.setMetaId(rs.getBigDecimal("meta_id"));
+                    metaData.setGroupId(rs.getBigDecimal("group_id"));
                     metaData.setBufFullName(rs.getString("buf_full_name"));
                     metaData.setRawFullName(rs.getString("raw_full_name"));
                     metaData.setRawName(rs.getString("raw_name"));

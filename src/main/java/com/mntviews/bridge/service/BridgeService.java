@@ -5,6 +5,7 @@ import com.mntviews.bridge.model.ConnectionData;
 import com.mntviews.bridge.model.MetaData;
 import com.mntviews.bridge.model.RawData;
 
+import java.math.BigDecimal;
 import java.sql.Connection;
 
 public interface BridgeService {
@@ -16,6 +17,11 @@ public interface BridgeService {
     RawData saveRawData(Connection connection, MetaData metaData, RawData rawData);
 
     RawData findRawDataById(Connection connection, MetaData metaData, Long id);
+
+    BufData findBufDataById(Connection connection, MetaData metaData, Long id);
+
+
+    BufData findBufDataByRawId(Connection connection, MetaData metaData, Long id);
 
     void deleteRawData(Connection connection, MetaData metaData, RawData rawData);
 

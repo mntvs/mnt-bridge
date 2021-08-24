@@ -1,11 +1,14 @@
 package com.mntviews.bridge.service;
 
+import com.mntviews.bridge.model.BufData;
 import com.mntviews.bridge.model.ConnectionData;
 import com.mntviews.bridge.model.MetaData;
 import com.mntviews.bridge.model.RawData;
+import com.mntviews.bridge.repository.BufRepo;
 import com.mntviews.bridge.repository.MetaDataRepo;
 import com.mntviews.bridge.repository.RawLoopRepo;
 import com.mntviews.bridge.repository.RawRepo;
+import com.mntviews.bridge.repository.impl.BufRepoImpl;
 import com.mntviews.bridge.repository.impl.MetaDataRepoImpl;
 import com.mntviews.bridge.repository.impl.RawLoopRepoImpl;
 import com.mntviews.bridge.repository.impl.RawRepoImpl;
@@ -13,6 +16,7 @@ import com.mntviews.bridge.service.exception.BridgeContextException;
 import com.mntviews.bridge.service.impl.BridgeServiceImpl;
 import lombok.Getter;
 
+import java.math.BigDecimal;
 import java.sql.Connection;
 import java.util.Objects;
 
@@ -47,7 +51,8 @@ public class BridgeContext {
             MetaDataRepo metaDataRepo = new MetaDataRepoImpl();
             RawLoopRepo rawLoopRepo = new RawLoopRepoImpl();
             RawRepo rawRepo = new RawRepoImpl();
-            this.bridgeService = new BridgeServiceImpl(rawLoopRepo, metaDataRepo, rawRepo);
+            BufRepo bufRepo = new BufRepoImpl();
+            this.bridgeService = new BridgeServiceImpl(rawLoopRepo, metaDataRepo, rawRepo, bufRepo);
         } else
             this.bridgeService = builder.bridgeService;
 
@@ -72,6 +77,38 @@ public class BridgeContext {
         checkMetaData();
         bridgeService.saveRawData(this.dataBaseType.getConnection(connectionData), metaData, rawData);
     }
+
+    public RawData findRawDataById(Long id) {
+        return findRawDataById(id, this.dataBaseType.getConnection(connectionData));
+    }
+
+    public RawData findRawDataById(Long id, Connection connection) {
+        checkMetaData();
+        return bridgeService.findRawDataById(connection, metaData, id);
+
+    }
+
+    public BufData findBufDataById(Long id) {
+        checkMetaData();
+        return findBufDataById(id, this.dataBaseType.getConnection(connectionData));
+    }
+
+    public BufData findBufDataById(Long id, Connection connection) {
+        checkMetaData();
+        return bridgeService.findBufDataById(connection, metaData, id);
+    }
+
+    public BufData findBufDataByRawId(Long id) {
+        checkMetaData();
+        return findBufDataByRawId(id, this.dataBaseType.getConnection(connectionData));
+    }
+
+
+    public BufData findBufDataByRawId(Long id, Connection connection) {
+        checkMetaData();
+        return bridgeService.findBufDataByRawId(connection, metaData, id);
+    }
+
 
     public void migrate(Boolean isClean) {
         dataBaseType.migrate(connectionData, isClean);

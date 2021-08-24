@@ -2,10 +2,12 @@ package com.mntviews.bridge.model;
 
 import lombok.Data;
 
+import java.math.BigDecimal;
+
 @Data
 public class MetaData {
-    Long groupId;
-    Long metaId;
+    BigDecimal groupId;
+    BigDecimal metaId;
     String schemaName;
     String rawName;
     String bufName;
