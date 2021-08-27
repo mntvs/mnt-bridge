@@ -47,8 +47,11 @@ public class RawLoopRepoImpl implements RawLoopRepo {
                         } catch (Exception e) {
                             processData.setProcessedStatus(-3);
                             processData.setErrorMessage(e.getMessage());
+
                         }
                     }
+                    if (processData.getProcessedStatus() == -3)
+                        connection.rollback();
                     postProcess(connection, processData, schemaName);
                     connection.commit();
                 }

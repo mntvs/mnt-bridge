@@ -38,10 +38,7 @@ public class MetaDataRepoImpl implements MetaDataRepo {
                 }
 
             } catch (Exception e) {
-                connection.rollback();
                 throw new MetaDataRepoException(e);
-            } finally {
-                connection.commit();
             }
         } catch (Exception e) {
             throw new MetaDataRepoException(e);

@@ -132,6 +132,10 @@ public class DataBaseProcessingUnit {
             assertEquals(ITEMS_COUNT, successCount,dbTypeName + ": Success count raw");
             Integer errorCount = containerUnit.getJdbcTemplate().queryForObject("select count(*) from " + SCHEMA_NAME + ".fbi_raw_" + META_TAG + " where s_status=-3", Integer.class);
             assertEquals(ITEMS_COUNT, errorCount, dbTypeName + ": Error count raw");
+
+            int count=containerUnit.getJdbcTemplate().queryForObject("SELECT COUNT(*) FROM " + SCHEMA_NAME + ".fbi_buf_" + META_TAG, Integer.class);
+            assertEquals(count, ITEMS_COUNT);
+
         }
     }
 

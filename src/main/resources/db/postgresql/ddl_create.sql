@@ -393,9 +393,8 @@ begin
             if l_processed_status <> 0 then
                 l_count := l_count + 1;
             end if;
-            if l_count % 100 = 0 then
-                commit;
-            end if;
+            commit;
+
         end loop;
     commit;
 end ;

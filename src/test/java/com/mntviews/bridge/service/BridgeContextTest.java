@@ -121,6 +121,10 @@ public class BridgeContextTest {
                     return null;
                 }
             });
+
+            int count=jdbcTemplate.queryForObject("SELECT COUNT(*) FROM " + SCHEMA_NAME + ".fbi_buf_" + META_TAG, Integer.class);
+
+            assertEquals(count, 1);
         }
     }
 
@@ -173,6 +177,9 @@ public class BridgeContextTest {
                 Integer counterCount = jdbcTemplate.queryForObject("select sum(s_counter) from " + SCHEMA_NAME + ".fbi_raw_" + META_TAG + " where  s_status=1", Integer.class);
                 assertEquals(ITEMS_COUNT, counterCount, "Counter count raw");
                 counterCount = jdbcTemplate.queryForObject("select sum(s_counter) from " + SCHEMA_NAME + ".fbi_raw_" + META_TAG + " where  s_status=-3", Integer.class);
+
+                int count=jdbcTemplate.queryForObject("SELECT COUNT(*) FROM " + SCHEMA_NAME + ".fbi_buf_" + META_TAG, Integer.class);
+                assertEquals(count, ITEMS_COUNT);
                 System.out.println("counterCount=" + counterCount);
             } catch (InterruptedException ex) {
                 executor.shutdownNow();

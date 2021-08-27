@@ -1,16 +1,12 @@
 package com.mntviews.bridge.repository.impl;
 
-import com.mntviews.bridge.model.MetaData;
 import com.mntviews.bridge.model.RawData;
 import com.mntviews.bridge.repository.RawRepo;
-import com.mntviews.bridge.repository.exception.MetaDataRepoException;
 import com.mntviews.bridge.repository.exception.RawRepoException;
 
-import java.math.BigDecimal;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
-import java.sql.Statement;
 import java.time.OffsetDateTime;
 import java.util.Objects;
 
@@ -43,10 +39,7 @@ public class RawRepoImpl implements RawRepo {
                     }
 
                 } catch (Exception e) {
-                    connection.rollback();
                     throw new RawRepoException(e);
-                } finally {
-                    connection.commit();
                 }
             } else {
                 try (PreparedStatement stmt = connection
@@ -59,10 +52,7 @@ public class RawRepoImpl implements RawRepo {
                         throw new RawRepoException("0 rows affected");
                     }
                 } catch (Exception e) {
-                    connection.rollback();
                     throw new RawRepoException(e);
-                } finally {
-                    connection.commit();
                 }
             }
 
@@ -97,10 +87,7 @@ public class RawRepoImpl implements RawRepo {
                 }
 
             } catch (Exception e) {
-                connection.rollback();
                 throw new RawRepoException(e);
-            } finally {
-                connection.commit();
             }
         } catch (Exception e) {
             throw new RawRepoException(e);

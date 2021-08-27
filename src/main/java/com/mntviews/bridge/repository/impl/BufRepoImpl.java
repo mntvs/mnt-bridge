@@ -1,7 +1,6 @@
 package com.mntviews.bridge.repository.impl;
 
 import com.mntviews.bridge.model.BufData;
-import com.mntviews.bridge.model.RawData;
 import com.mntviews.bridge.repository.BufRepo;
 import com.mntviews.bridge.repository.exception.RawRepoException;
 
@@ -38,10 +37,7 @@ public class BufRepoImpl implements BufRepo {
                 }
 
             } catch (Exception e) {
-                connection.rollback();
                 throw new RawRepoException(e);
-            } finally {
-                connection.commit();
             }
         } catch (Exception e) {
             throw new RawRepoException(e);
