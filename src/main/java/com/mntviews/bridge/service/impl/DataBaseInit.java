@@ -9,11 +9,11 @@ import com.mntviews.bridge.service.DataBaseInitService;
 import com.mntviews.bridge.service.ScriptRunner;
 import com.mntviews.bridge.service.exception.DataBaseInitServiceException;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.java.Log;
 
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.sql.Connection;
+import java.sql.SQLException;
 
 
 @RequiredArgsConstructor
@@ -21,33 +21,47 @@ abstract public class DataBaseInit implements DataBaseInitService {
     protected final MetaInitRepo metaInitRepo;
     protected final MetaDataRepo metaDataRepo;
 
-    public MetaData init(ConnectionData connectionData, String groupTag, String metaTag, String schemaName) {
+    public MetaData init(ConnectionData connectionData, String groupTag, String metaTag, String schemaName, String param) {
         if (metaInitRepo != null) {
-            Connection connection = metaInitRepo.findConnection(connectionData);
-            MetaData metaData = metaDataRepo.findMetaData(connection, groupTag, metaTag, connectionData.getSchemaName());
-            if (metaData == null) {
-                metaInitRepo.init(connection, groupTag, metaTag, schemaName, connectionData.getSchemaName());
-                metaData = metaDataRepo.findMetaData(connection, groupTag, metaTag, connectionData.getSchemaName());
+            try (Connection connection = metaInitRepo.getConnection(connectionData)) {
+                MetaData metaData = metaDataRepo.findMetaData(connection, groupTag, metaTag, connectionData.getSchemaName());
+                if (metaData == null) {
+                    metaInitRepo.init(connection, groupTag, metaTag, schemaName, connectionData.getSchemaName(), param);
+                    metaData = metaDataRepo.findMetaData(connection, groupTag, metaTag, connectionData.getSchemaName());
+                }
+                try {
+                    connection.commit();
+                } catch (SQLException e) {
+                    throw new DataBaseInitServiceException(e);
+                }
+                return metaData;
+            } catch (SQLException e) {
+                throw new DataBaseInitServiceException(e);
             }
-            return metaData;
+
+
         }
         return null;
     }
 
     protected void migrate(ConnectionData connectionData, Boolean isClean, String ddlCreatePath, String ddlDropPath) {
-        Connection connection = metaInitRepo.findConnection(connectionData);
-        ScriptRunner scriptRunner = new ScriptRunner(connection, false, false);
-        try {
-            if (isClean) {
-                executeScript(connectionData, ddlDropPath, scriptRunner);
-                connection.commit();
+        try (Connection connection = metaInitRepo.getConnection(connectionData)) {
+            ScriptRunner scriptRunner = new ScriptRunner(connection, false, false);
+            try {
+                if (isClean) {
+                    executeScript(connectionData, ddlDropPath, scriptRunner);
+                    connection.commit();
 
+                }
+                executeScript(connectionData, ddlCreatePath, scriptRunner);
+                connection.commit();
+            } catch (Exception e) {
+                throw new DataBaseInitServiceException(e);
             }
-            executeScript(connectionData, ddlCreatePath, scriptRunner);
-            connection.commit();
-        } catch (Exception e) {
+        } catch (SQLException e) {
             throw new DataBaseInitServiceException(e);
         }
+
     }
 
     private void executeScript(ConnectionData connectionData, String ddlCreatePath, ScriptRunner scriptRunner) {
@@ -70,15 +84,22 @@ abstract public class DataBaseInit implements DataBaseInitService {
 
     @Override
     public void clear(ConnectionData connectionData, String groupTag, String metaTag) {
-        if (metaInitRepo != null)
-            metaInitRepo.clear(metaInitRepo.findConnection(connectionData), groupTag, metaTag, connectionData.getSchemaName());
+
+        try (Connection connection = metaInitRepo.getConnection(connectionData)) {
+            if (metaInitRepo != null) {
+                metaInitRepo.clear(connection, groupTag, metaTag, connectionData.getSchemaName());
+            }
+        } catch (SQLException e) {
+            throw new DataBaseInitServiceException(e);
+        }
+
     }
 
 
     @Override
     public Connection getConnection(ConnectionData connectionData) {
         if (metaInitRepo != null)
-            return metaInitRepo.findConnection(connectionData);
+            return metaInitRepo.getConnection(connectionData);
         else
             return null;
     }

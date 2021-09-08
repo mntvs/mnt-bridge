@@ -32,8 +32,8 @@ public enum DataBaseType implements DataBaseInitService {
     }
 
     @Override
-    public MetaData init(ConnectionData connectionData, String groupTag, String metaTag, String schemaName) {
-        return dataBaseInitService.init(connectionData, groupTag, metaTag, schemaName);
+    public MetaData init(ConnectionData connectionData, String groupTag, String metaTag, String schemaName, String param) {
+        return dataBaseInitService.init(connectionData, groupTag, metaTag, schemaName, param);
     }
 
     @Override

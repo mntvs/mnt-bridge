@@ -6,7 +6,9 @@ import com.mntviews.bridge.repository.RawLoopRepo;
 import com.mntviews.bridge.repository.exception.PostProcessRepoException;
 import com.mntviews.bridge.repository.exception.PreProcessRepoException;
 import com.mntviews.bridge.repository.exception.RawLoopRepoException;
+import com.mntviews.bridge.repository.exception.UnrepeatableStatusException;
 import com.mntviews.bridge.service.BridgeProcessing;
+import com.mntviews.bridge.service.BridgeUtil;
 import lombok.RequiredArgsConstructor;
 
 import java.sql.*;
@@ -19,18 +21,44 @@ public class RawLoopRepoImpl implements RawLoopRepo {
      * Main loop to process raw queue
      * TODO: Modify to start with only provided raw_id
      * TODO: Option to change order
+     *  @param connection       opened connection with db
      *
-     * @param connection       opened connection with db
      * @param metaData         system data received from db
      * @param bridgeProcessing outer procedure to process current raw
      * @param schemaName       schema name for system system objects
+     * @param rawId
      */
     @Override
-    public void rawLoop(Connection connection, MetaData metaData, BridgeProcessing bridgeProcessing, String schemaName) {
+    public void rawLoop(Connection connection, MetaData metaData, BridgeProcessing bridgeProcessing, String schemaName, Long rawId) {
         AtomicInteger count = new AtomicInteger();
 
-        try (Statement stmt = connection.createStatement();) {
-            try (ResultSet rs = stmt.executeQuery(metaData.getRawLoopQuery());) {
+        String rawLoopQuery;
+        if (rawId == null) {
+            Object paramOrder = metaData.getParam().get(BridgeUtil.PARAM_ORDER);
+            if (paramOrder == null)
+                throw new RawLoopRepoException("parameter '" + BridgeUtil.PARAM_ORDER + "' is not defined");
+
+            if (!(paramOrder instanceof String))
+                throw new RawLoopRepoException("parameter '" + BridgeUtil.PARAM_ORDER + "' is must be String");
+
+            switch ((String) paramOrder) {
+                case "LIFO":
+                    rawLoopQuery = "select id from " + metaData.getRawFullName() + " where s_action=0 order by s_date desc, id desc";
+                    break;
+                case "FIFO":
+                    rawLoopQuery = "select id from " + metaData.getRawFullName() + " where s_action=0 order by s_date asc, id asc";
+                    break;
+                default:
+                    throw new RawLoopRepoException("Parameter '" + BridgeUtil.PARAM_ORDER + "' must be FIFO or LIFO");
+            }
+
+        }
+        else
+            rawLoopQuery = "select id from " + metaData.getRawFullName() + " where s_action=0 and id=?";
+        try (PreparedStatement stmt = connection.prepareStatement(rawLoopQuery)) {
+            if (rawId != null)
+                stmt.setLong(1, rawId);
+            try (ResultSet rs = stmt.executeQuery()) {
                 while (rs.next()) {
                     Integer processedStatus = 0;
                     String errorMessage = null;
@@ -44,13 +72,16 @@ public class RawLoopRepoImpl implements RawLoopRepo {
                         try {
                             if (bridgeProcessing != null)
                                 bridgeProcessing.process(connection, processData);
+                        } catch (UnrepeatableStatusException e) {
+                            processData.setProcessedStatus(BridgeUtil.STATUS_ERROR_UNREPEATABLE);
+                            processData.setErrorMessage(e.getMessage());
                         } catch (Exception e) {
-                            processData.setProcessedStatus(-3);
+                            processData.setProcessedStatus(BridgeUtil.STATUS_ERROR);
                             processData.setErrorMessage(e.getMessage());
 
                         }
                     }
-                    if (processData.getProcessedStatus() == -3)
+                    if (processData.getProcessedStatus() == BridgeUtil.STATUS_ERROR)
                         connection.rollback();
                     postProcess(connection, processData, schemaName);
                     connection.commit();

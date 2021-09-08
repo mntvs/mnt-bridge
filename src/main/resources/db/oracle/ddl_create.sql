@@ -4,12 +4,13 @@ create sequence ${schemaName}.sq_bridge_meta;
 
 create table ${schemaName}.bridge_group
 (
-    id          number(19)         not null
+    id          number(19)     not null
         constraint bridge_group_pk
             primary key,
     tag         varchar2(1000) not null,
     note        varchar2(4000),
-    schema_name varchar2(30)   not null
+    schema_name varchar2(30)   not null,
+    param       varchar2(4000) default '<PARAM><ORDER>LIFO</ORDER><ATTEMPT>-1</ATTEMPT></PARAM>'
 );
 
 comment on table ${schemaName}.bridge_group is 'Contains groups descriptions ${versionStr}';
@@ -19,12 +20,13 @@ create unique index ${schemaName}.bridge_group_tag_uindex
 
 create table ${schemaName}.bridge_meta
 (
-    id       number(19)         not null
+    id       number(19)     not null
         constraint bridge_meta_pk
             primary key,
     tag      varchar2(1000) not null,
     note     varchar2(4000),
-    group_id number(19)         not null
+    param    varchar2(4000),
+    group_id number(19)     not null
         constraint bridge_meta_group_fk
             references bridge_group,
     constraint bridge_meta_uk_1
@@ -35,8 +37,7 @@ comment on table ${schemaName}.bridge_meta is 'Contains meta information ${versi
 
 create view ${schemaName}.bridge_meta_v
             (group_tag, meta_tag, group_id, meta_id, schema_name, raw_name, buf_name, prc_exec_name, raw_full_name,
-             buf_full_name, prc_exec_full_name,
-             raw_loop_query)
+             buf_full_name, prc_exec_full_name, param, param_type)
 as
 SELECT tt2.group_tag,
        tt2.meta_tag,
@@ -49,8 +50,8 @@ SELECT tt2.group_tag,
        tt2.raw_full_name,
        tt2.buf_full_name,
        tt2.prc_exec_full_name,
-       ('select id from ' || tt2.raw_full_name) ||
-       ' where s_action=0 order by s_date desc, id desc' AS raw_loop_query
+       tt2.param,
+       'XML' param_type
 FROM (SELECT tt1.group_tag,
              tt1.meta_tag,
              tt1.group_id,
@@ -61,15 +62,17 @@ FROM (SELECT tt1.group_tag,
              tt1.prc_exec_name,
              tt1.schema_name || '.' || tt1.raw_name      AS raw_full_name,
              tt1.schema_name || '.' || tt1.buf_name      AS buf_full_name,
-             tt1.schema_name || '.' || tt1.prc_exec_name AS prc_exec_full_name
-      FROM (SELECT bg.tag                   group_tag,
-                   bm.tag                   meta_tag,
+             tt1.schema_name || '.' || tt1.prc_exec_name AS prc_exec_full_name,
+             tt1.param
+      FROM (SELECT bg.tag                         group_tag,
+                   bm.tag                         meta_tag,
                    bm.group_id,
-                   bm.id                    meta_id,
+                   bm.id                          meta_id,
                    bg.schema_name,
-                   'FBI_RAW_' || bm.tag  AS raw_name,
-                   'FBI_BUF_' || bm.tag  AS buf_name,
-                   'PRC_EXEC_' || bm.tag AS prc_exec_name
+                   'FBI_RAW_' || bm.tag  AS       raw_name,
+                   'FBI_BUF_' || bm.tag  AS       buf_name,
+                   'PRC_EXEC_' || bm.tag AS       prc_exec_name,
+                   UPPER(NVL(bm.param, bg.param)) param
             FROM mnt_bridge.bridge_meta bm
                      JOIN mnt_bridge.bridge_group bg ON bg.id = bm.group_id) tt1) tt2;
 
@@ -114,7 +117,7 @@ $$
 
 
 create or replace procedure ${schemaName}.prc_create_meta_by_tag(a_group_tag VARCHAR2, a_meta_tag VARCHAR2,
-                                                                 a_schema_name VARCHAR2 DEFAULT NULL)
+                                                                 a_schema_name VARCHAR2 DEFAULT NULL, a_param VARCHAR2 DEFAULT NULL)
 as
     l_raw_full_name      VARCHAR2(100);
     l_buf_full_name      VARCHAR2(100);
@@ -132,7 +135,7 @@ as
 begin
     /* Creates db objects ${versionStr} */
 
-    l_time_created := TO_CHAR(sysdate,'yyyy-mm-dd hh24:mi:ss');
+    l_time_created := TO_CHAR(sysdate, 'yyyy-mm-dd hh24:mi:ss');
 
     begin
         select id into l_group_id from ${schemaName}.bridge_group where tag = a_group_tag;
@@ -147,8 +150,8 @@ begin
         select id into l_meta_id from ${schemaName}.bridge_meta where group_id = l_group_id and tag = a_meta_tag;
     exception
         when no_data_found then
-            insert into ${schemaName}.bridge_meta (id, tag, group_id)
-            values (${schemaName}.sq_bridge_meta.nextval, a_meta_tag, l_group_id)
+            insert into ${schemaName}.bridge_meta (id, tag, group_id, param)
+            values (${schemaName}.sq_bridge_meta.nextval, a_meta_tag, l_group_id, a_param)
             returning id into l_meta_id;
     end;
 
@@ -351,19 +354,17 @@ begin
         EXECUTE IMMEDIATE
                 'create procedure ' || l_prc_exec_full_name || '(a_raw_id NUMBER, a_buf_id NUMBER)
                 as
-                    l_sqlerrm VARCHAR2(2000);
                 begin
                 /* Generated ' || l_time_created || ' ${versionStr} */
                 null;
         exception when others then
-                l_sqlerrm:=sqlerrm;
-            raise_application_error(-20001, ''' || lower(l_prc_exec_name) || ' error : '' || l_sqlerrm || '' {buf.id='' || a_buf_id || ''}'');
+            raise_application_error(SQLCODE, ''' || lower(l_prc_exec_name) || ' error : '' || sqlerrm || '' {buf.id='' || a_buf_id || ''}'');
     end;';
     end if;
 
 EXCEPTION
     WHEN OTHERS THEN
-        raise_application_error(-20001, 'prc_create_meta_by_tag error : ' || sqlerrm || ' {group_tag=' || a_group_tag ||
+        raise_application_error(-20801, 'prc_create_meta_by_tag error : ' || sqlerrm || ' {group_tag=' || a_group_tag ||
                                         ',meta_tag=' || a_meta_tag || ',schema_name=' || a_schema_name || '}');
 END;
 $$
@@ -505,9 +506,9 @@ begin
 
     execute immediate 'merge into ' || a_buf_full_name ||
                       ' a using (select :1 as raw_id, :2 raw_f_id, :3 raw_f_payload, :4 f_date from dual) b on (a.f_id = b.raw_f_id) when not matched then ' ||
-                      'insert (f_raw_id,f_id, f_payload, f_date) values (b.raw_id, b.raw_f_id, b.raw_f_payload, b.f_date) when matched then ' ||
-                      'update set a.f_raw_id=b.raw_id,a.f_payload=b.raw_f_payload,a.f_date=b.f_date, s_counter=s_counter+1 where f_date<=:5' using
-        l_raw_id,l_raw_f_id,l_raw_f_payload, l_raw_f_date, l_raw_f_date;
+                      'insert (f_raw_id,f_id, f_payload, f_date, s_counter) values (b.raw_id, b.raw_f_id, b.raw_f_payload, b.f_date, 1) when matched then ' ||
+                      'update set a.f_raw_id=b.raw_id,a.f_payload=b.raw_f_payload,a.f_date=b.f_date, s_counter=s_counter+1 where :5>a.f_date OR (:6=a.f_date AND :7>=a.f_raw_id)' using
+        l_raw_id,l_raw_f_id,l_raw_f_payload, l_raw_f_date, l_raw_f_date,l_raw_f_date, l_raw_id;
 
     if SQL%ROWCOUNT > 0 then
         execute immediate 'begin ' || a_prc_exec_full_name || ' (:1,:2); end;' using l_raw_id,l_buf_id;
@@ -525,8 +526,13 @@ exception
         a_processed_status := 0; -- processing not happened. Omitted
         a_error_message := '';
     when others then
+        if sqlcode = -20993 then
+            a_processed_status := 3; -- unrepeatable status
+        else
+            a_processed_status := -3; -- processing happened with error
+        end if;
+
         ROLLBACK TO sp_buf;
-        a_processed_status := -3; -- processing happend with error
         a_error_message := sqlerrm;
 end;
 $$
@@ -541,7 +547,7 @@ begin
     if a_processed_status <> 0 then
         execute immediate 'update ' || a_raw_full_name ||
                           ' set (s_status,s_msg,s_date,s_action, s_counter, f_msg)=(select :1,:2,:3,:4,s_counter+1,:5 from dual) where id=:6'
-            using a_processed_status,a_error_message,sysdate,case when a_processed_status < 0 then 0 else 1 end, a_msg, a_raw_id;
+            using a_processed_status,a_error_message,sysdate,case when a_processed_status = -3 then 0 else 1 end, a_msg, a_raw_id;
     end if;
 end;
 $$
@@ -561,23 +567,46 @@ as
     c_raw_rec            cur_typ;
     l_raw_id             NUMBER(19);
     l_buf_id             NUMBER(19);
+    l_attempt            NUMBER;
+    l_counter            NUMBER;
 begin
     /* Start processing ${versionStr} */
-    select RAW_LOOP_QUERY, raw_full_name, buf_full_name, prc_exec_full_name
-    into l_raw_loop_query,l_raw_full_name,l_buf_full_name,l_prc_exec_full_name
+    select raw_full_name,
+           buf_full_name,
+           prc_exec_full_name,
+           case extract(XMLType(param), 'PARAM/ORDER/text()').getStringVal()
+               when 'FIFO' then 'select id, s_counter from ' || raw_full_name || ' where s_action=0 order by s_date asc, id asc'
+               when 'LIFO' then 'select id, s_counter from ' || raw_full_name || ' where s_action=0 order by s_date desc, id desc'
+               end
+            ,
+           nvl(extract(XMLType(param), 'PARAM/ATTEMPT/text()').getNumberVal(), -1)
+    into l_raw_full_name,l_buf_full_name,l_prc_exec_full_name,l_raw_loop_query,l_attempt
     from ${schemaName}.BRIDGE_META_V
     where GROUP_tag = a_group_tag
       and META_TAG = a_meta_tag;
-    OPEN c_raw_rec FOR l_raw_loop_query;
+
+
+    if a_raw_id is null then
+        if l_raw_loop_query is null then
+            raise_application_error(-20802, 'Param ''ORDER'' is not defined');
+        end if;
+        open c_raw_rec for l_raw_loop_query;
+    else
+        open c_raw_rec for 'select id, s_counter from ' || l_raw_full_name || ' where s_action=0 and id=:1' using a_raw_id;
+    end if;
 
     loop
-        FETCH c_raw_rec INTO l_raw_id;
+        FETCH c_raw_rec INTO l_raw_id, l_counter;
         EXIT WHEN c_raw_rec%NOTFOUND;
         /* process the result row */
         l_error_message := NULL;
         l_processed_status := NULL;
         ${schemaName}.prc_pre_process(l_raw_id, l_raw_full_name, l_buf_full_name,
                                       l_prc_exec_full_name, l_processed_status, l_error_message, l_buf_id);
+
+        if l_attempt <> -1 and l_counter +1 >= l_attempt and l_processed_status = -3 then
+            l_processed_status := 3;
+        end if;
 
         ${schemaName}.prc_post_process(l_raw_id, l_raw_full_name, l_processed_status, l_error_message, a_msg);
 
@@ -586,6 +615,7 @@ begin
         end if;
         commit;
     end loop;
+    close c_raw_rec;
     commit;
 end;
 $$

@@ -1,16 +1,14 @@
 package com.mntviews.bridge.service;
 
 import com.mntviews.bridge.model.BufData;
-import com.mntviews.bridge.model.ConnectionData;
 import com.mntviews.bridge.model.MetaData;
 import com.mntviews.bridge.model.RawData;
 
-import java.math.BigDecimal;
 import java.sql.Connection;
 
 public interface BridgeService {
 
-    void execute(MetaData metaData, Connection connection, BridgeProcessing bridgeProcessing, String schemaName);
+    void execute(MetaData metaData, Connection connection, BridgeProcessing bridgeProcessing, String schemaName, Long rawId);
 
     MetaData findMetaData(String groupTag, String metaTag, Connection connection, String schemaName);
 

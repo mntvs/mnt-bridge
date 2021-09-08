@@ -9,7 +9,7 @@ public interface DataBaseInitService {
     void migrate(ConnectionData connectionData, Boolean isClean);
     void migrate(ConnectionData connectionData);
 
-    MetaData init(ConnectionData connectionData, String groupTag, String metaTag, String schemaName);
+    MetaData init(ConnectionData connectionData, String groupTag, String metaTag, String schemaName, String param);
 
     void clear(ConnectionData connectionData, String groupTag, String metaTag);
 

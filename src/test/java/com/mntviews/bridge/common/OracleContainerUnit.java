@@ -25,13 +25,14 @@ public class OracleContainerUnit extends ContainerUnit {
     public OracleContainerUnit() {
 
         connectionData = new ConnectionData(DB_URL, USER_NAME, USER_PASSWORD, BridgeContext.DEFAULT_SCHEMA_NAME);
-
+        attemptTestParam = "<PARAM><ORDER>LIFO</ORDER><ATTEMPT>2</ATTEMPT></PARAM>";
         bridgeContext = BridgeContext
                 .custom(GROUP_TAG, META_TAG, connectionData)
                 .withBridgeProcessing((connection, processData) -> {
                     if (processData.getRawId()%2== 0)
                         throw new RuntimeException(TEST_EXCEPTION_TEXT);
                 })
+                .withParam("<PARAM><ORDER>LIFO</ORDER><ATTEMPT>-1</ATTEMPT></PARAM>")
                 .withSchemaName(SCHEMA_NAME)
                 .withDataBaseType(DataBaseType.ORACLE)
                 .build();
@@ -52,8 +53,6 @@ public class OracleContainerUnit extends ContainerUnit {
         } catch (SQLException throwables) {
             throwables.printStackTrace();
         }
-        metaData = metaDataRepo.findMetaData(connection,GROUP_TAG,META_TAG, BridgeContext.DEFAULT_SCHEMA_NAME);
-
     }
 
     @Override
@@ -80,6 +79,18 @@ public class OracleContainerUnit extends ContainerUnit {
                         "        exception when others then\n" +
                         "                l_sqlerrm:=sqlerrm;\n" +
                         "            raise_application_error(-20001, ''' || lower('" + bridgeContext.getMetaData().getPrcExecName() + "') || ' error : '' || l_sqlerrm || '' {buf.id='' || a_buf_id || ''}'');\n" +
+                        "    end;'; end;";
+
+            case "EXCEPTION3" :
+                return "begin EXECUTE IMMEDIATE\n" +
+                        "                'create or replace procedure " + bridgeContext.getMetaData().getPrcExecFullName() + "(a_raw_id number, a_buf_id number)\n" +
+                        "                as\n" +
+                        "                    l_sqlerrm VARCHAR2(2000);\n" +
+                        "                begin\n" +
+                        "               raise_application_error(-20993,''" + TEST_EXCEPTION_TEXT + "'');  \n" +
+                        "        exception when others then\n" +
+                        "                l_sqlerrm:=sqlerrm;\n" +
+                        "            raise_application_error(SQLCODE, ''' || lower('" + bridgeContext.getMetaData().getPrcExecName() + "') || ' error : '' || l_sqlerrm || '' {buf.id='' || a_buf_id || ''}'');\n" +
                         "    end;'; end;";
             default : throw new RuntimeException("typeTag not found {" + typeTag + "}");
         }

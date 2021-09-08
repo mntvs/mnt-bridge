@@ -25,6 +25,10 @@ dependencies {
 
     implementation 'org.postgresql:postgresql:42.2.19'
     implementation 'com.oracle.database.jdbc:ojdbc8:19.6.0.0'
+    implementation 'com.fasterxml.jackson.core:jackson-databind:2.12.5'
+
+    implementation 'com.fasterxml.jackson.dataformat:jackson-dataformat-xml:2.12.5'
+
 
     compileOnly 'org.projectlombok:lombok:1.18.20'
     annotationProcessor 'org.projectlombok:lombok:1.18.20'

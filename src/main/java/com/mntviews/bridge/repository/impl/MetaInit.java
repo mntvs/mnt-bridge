@@ -11,13 +11,14 @@ import java.sql.SQLException;
 abstract public class MetaInit implements MetaInitRepo {
 
     @Override
-    public void init(Connection connection, String groupTag, String metaTag, String schemaName, String schemaMetaName) {
+    public void init(Connection connection, String groupTag, String metaTag, String schemaName, String schemaMetaName, String param) {
 
         try {
-            try (CallableStatement callableStatement = connection.prepareCall(String.format("call %s.prc_create_meta_by_tag(?,?,?)", schemaMetaName))) {
+            try (CallableStatement callableStatement = connection.prepareCall(String.format("call %s.prc_create_meta_by_tag(?,?,?,?)", schemaMetaName))) {
                 callableStatement.setString(1, groupTag);
                 callableStatement.setString(2, metaTag);
                 callableStatement.setString(3, schemaName);
+                callableStatement.setString(4, param);
                 callableStatement.executeUpdate();
             }
 

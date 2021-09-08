@@ -7,7 +7,11 @@ create table ${schemaName}.bridge_group
             primary key,
     tag         text      not null,
     note        text,
-    schema_name text      not null
+    schema_name text      not null,
+    param       text      not null default '{
+      "ORDER": "LIFO",
+      "ATTEMPT": -1
+    }'
 );
 
 comment on table ${schemaName}.bridge_group is 'Contains groups descriptions ${versionStr}';
@@ -22,6 +26,7 @@ create table ${schemaName}.bridge_meta
             primary key,
     tag      text      not null,
     note     text,
+    param    text,
     group_id bigint    not null
         constraint bridge_meta_group_fk
             references ${schemaName}.bridge_group,
@@ -33,8 +38,7 @@ comment on table ${schemaName}.bridge_meta is 'Contains meta information ${versi
 
 create view ${schemaName}.bridge_meta_v
             (group_tag, meta_tag, group_id, meta_id, schema_name, raw_name, buf_name, prc_exec_name, raw_full_name,
-             buf_full_name, prc_exec_full_name,
-             raw_loop_query)
+             buf_full_name, prc_exec_full_name, param, param_type)
 as
 SELECT tt2.group_tag,
        tt2.meta_tag,
@@ -47,8 +51,8 @@ SELECT tt2.group_tag,
        tt2.raw_full_name,
        tt2.buf_full_name,
        tt2.prc_exec_full_name,
-       ('select id from ' || tt2.raw_full_name) ||
-       ' where s_action=0 order by s_date desc, id desc' AS raw_loop_query
+       tt2.param,
+       'JSON' param_type
 FROM (SELECT tt1.group_tag,
              tt1.meta_tag,
              tt1.group_id,
@@ -59,15 +63,17 @@ FROM (SELECT tt1.group_tag,
              tt1.prc_exec_name,
              tt1.schema_name || '.' || tt1.raw_name      AS raw_full_name,
              tt1.schema_name || '.' || tt1.buf_name      AS buf_full_name,
-             tt1.schema_name || '.' || tt1.prc_exec_name AS prc_exec_full_name
-      FROM (SELECT bg.tag                   group_tag,
-                   bm.tag                   meta_tag,
+             tt1.schema_name || '.' || tt1.prc_exec_name AS prc_exec_full_name,
+             tt1.param
+      FROM (SELECT bg.tag                       group_tag,
+                   bm.tag                       meta_tag,
                    bm.group_id,
-                   bm.id                    meta_id,
+                   bm.id                        meta_id,
                    bg.schema_name,
-                   'FBI_RAW_' || bm.tag  AS raw_name,
-                   'FBI_BUF_' || bm.tag  AS buf_name,
-                   'PRC_EXEC_' || bm.tag AS prc_exec_name
+                   'FBI_RAW_' || bm.tag  AS     raw_name,
+                   'FBI_BUF_' || bm.tag  AS     buf_name,
+                   'PRC_EXEC_' || bm.tag AS     prc_exec_name,
+                   COALESCE(bm.param, bg.param) param
             FROM ${schemaName}.bridge_meta bm
                      JOIN ${schemaName}.bridge_group bg ON bg.id = bm.group_id) tt1) tt2;
 
@@ -92,7 +98,7 @@ $$;
 
 ++
 
-create procedure ${schemaName}.prc_create_meta_by_tag(a_group_tag text, a_meta_tag text, a_schema_name text DEFAULT NULL)
+create procedure ${schemaName}.prc_create_meta_by_tag(a_group_tag text, a_meta_tag text, a_schema_name text default null, a_param text default null)
     language plpgsql
 as
 $$
@@ -122,8 +128,8 @@ begin
         select id into strict l_meta_id from ${schemaName}.bridge_meta where group_id = l_group_id and tag = a_meta_tag;
     exception
         when no_data_found then
-            insert into ${schemaName}.bridge_meta (tag, group_id)
-            values (a_meta_tag, l_group_id)
+            insert into ${schemaName}.bridge_meta (tag, group_id, param)
+            values (a_meta_tag, l_group_id, a_param)
             returning id into l_meta_id;
     end;
 
@@ -226,7 +232,7 @@ $f1$
 begin
     null;
 exception when others then
-    raise exception '%s error : %% {buf.id=%%}', sqlerrm, a_buf_id;
+    raise exception '%s error : %% {buf.id=%%}', sqlerrm, a_buf_id USING ERRCODE=sqlstate;
 end;
 $f1$;
                    $string$, l_prc_exec_full_name, lower(l_prc_exec_name));
@@ -266,17 +272,17 @@ begin
 
     IF NOT l_group_id IS NULL THEN
 
-    EXECUTE 'DROP PROCEDURE IF EXISTS ' || l_prc_exec_full_name || ' (bigint,bigint)';
-    EXECUTE 'DROP TABLE IF EXISTS ' || l_raw_full_name;
-    EXECUTE 'DROP TABLE IF EXISTS ' || l_buf_full_name;
+        EXECUTE 'DROP PROCEDURE IF EXISTS ' || l_prc_exec_full_name || ' (bigint,bigint)';
+        EXECUTE 'DROP TABLE IF EXISTS ' || l_raw_full_name;
+        EXECUTE 'DROP TABLE IF EXISTS ' || l_buf_full_name;
 
-    delete from ${schemaName}.bridge_meta where group_id = l_group_id and tag = a_meta_tag;
+        delete from ${schemaName}.bridge_meta where group_id = l_group_id and tag = a_meta_tag;
 
-    select count(*) into l_meta_count from ${schemaName}.bridge_meta where group_id = l_group_id;
+        select count(*) into l_meta_count from ${schemaName}.bridge_meta where group_id = l_group_id;
 
-    if l_meta_count = 0 then
-        delete from ${schemaName}.bridge_meta where group_id = l_group_id;
-    end if;
+        if l_meta_count = 0 then
+            delete from ${schemaName}.bridge_meta where group_id = l_group_id;
+        end if;
     END IF;
 end
 $$;
@@ -306,22 +312,22 @@ begin
         using a_raw_id into l_raw_id,l_raw_f_id,l_raw_f_payload,l_raw_f_date,l_raw_s_status;
 
     if not l_raw_id is null then
-            execute 'WITH t AS  (  insert into ' || a_buf_full_name ||
-                    ' as t (f_raw_id,f_id, f_payload, f_date) values ( $1, $2, $3, $4 ) on conflict (f_id) do ' ||
-                    'update set (f_raw_id, f_payload, f_date, s_counter) = ($1,$3,$4, t.s_counter+1)  where t.f_date<=$4 returning  xmax,id
-                )
-            SELECT COUNT(*) AS update_count,
-                   max(id)
-            FROM t'
-                using l_raw_id,l_raw_f_id,l_raw_f_payload, l_raw_f_date into l_update_count, l_buf_id;
+        execute 'WITH t AS  (  insert into ' || a_buf_full_name ||
+                ' as t (f_raw_id,f_id, f_payload, f_date, s_counter) values ( $1, $2, $3, $4, 1 ) on conflict (f_id) do ' ||
+                'update set (f_raw_id, f_payload, f_date, s_counter) = ($1,$3,$4, t.s_counter+1)  where $4>t.f_date OR ($4=t.f_date AND $1>=t.f_raw_id) returning  xmax,id
+            )
+        SELECT COUNT(*) AS update_count,
+               max(id)
+        FROM t'
+            using l_raw_id,l_raw_f_id,l_raw_f_payload, l_raw_f_date into l_update_count, l_buf_id;
 
-            if l_update_count>0 then
-                execute 'call ' || a_prc_exec_full_name || '($1,$2)' using l_raw_id,l_buf_id;
-                a_buf_id := l_buf_id;
-                l_raw_s_status := 1; -- Success
-            else
-                l_raw_s_status := 5; -- Skipped
-            end if;
+        if l_update_count > 0 then
+            execute 'call ' || a_prc_exec_full_name || '($1,$2)' using l_raw_id,l_buf_id;
+            a_buf_id := l_buf_id;
+            l_raw_s_status := 1; -- Success
+        else
+            l_raw_s_status := 5; -- Skipped
+        end if;
 
         a_processed_status := l_raw_s_status;
         -- processing finished successfully
@@ -330,7 +336,11 @@ begin
     end if;
 exception
     when others then
-        a_processed_status := -3; -- processing happened with error
+        if sqlstate = '20993' then
+            a_processed_status := 3; -- unrepeatable status
+        else
+            a_processed_status := -3; -- processing happened with error
+        end if;
         a_error_message := sqlerrm;
 end;
 $$;
@@ -349,14 +359,15 @@ begin
     if a_processed_status <> 0 then
         execute 'update ' || a_raw_full_name ||
                 ' set (s_status,s_msg,s_date,s_action, s_counter, f_msg)=($1,$2,$3,$4,s_counter+1,$5) where id=$6'
-            using a_processed_status,a_error_message,now(),case when a_processed_status < 0 then 0 else 1 end, a_msg, a_raw_id;
+            using a_processed_status,a_error_message,now(),case when a_processed_status = -3 then 0 else 1 end, a_msg, a_raw_id;
     end if;
 end ;
 $$;
 
 ++
 
-create procedure ${schemaName}.prc_start_task(a_group_tag text, a_meta_tag text, a_raw_id bigint DEFAULT NULL::bigint, a_msg IN text default NULL)
+create procedure ${schemaName}.prc_start_task(a_group_tag text, a_meta_tag text, a_raw_id bigint DEFAULT NULL::bigint,
+                                              a_msg IN text default NULL)
     language plpgsql
 as
 $$
@@ -370,25 +381,45 @@ declare
     l_buf_full_name      text;
     l_prc_exec_full_name text;
     l_buf_id             bigint;
+    l_attempt            integer;
 begin
     /* Start processing ${versionStr} */
 
-    select RAW_LOOP_QUERY, raw_full_name, buf_full_name, prc_exec_full_name
-    into l_raw_loop_query,l_raw_full_name,l_buf_full_name,l_prc_exec_full_name
+    select raw_full_name,
+           buf_full_name,
+           prc_exec_full_name,
+           case
+               when param::JSONB ->> 'ORDER' = 'FIFO' then 'select id,s_counter from ' || raw_full_name ||
+                                                    ' where s_action=0 order by s_date asc, id asc'
+               when param::JSONB ->> 'ORDER' = 'LIFO' or param::JSONB ->> 'ORDER' is null THEN
+                           'select id,s_counter from ' || raw_full_name ||
+                           ' where s_action=0 order by s_date desc, id desc'
+               end,
+           coalesce((param::JSONB ->> 'ATTEMPT')::INTEGER, -1)
+    into l_raw_full_name,l_buf_full_name,l_prc_exec_full_name, l_raw_loop_query, l_attempt
     from ${schemaName}.BRIDGE_META_V
     where GROUP_tag = a_group_tag
       and META_TAG = a_meta_tag;
 
-    for c_raw_rec in execute l_raw_loop_query
+    if not a_raw_id is null then
+        l_raw_loop_query := 'select id,s_counter from ' || l_raw_full_name || ' where s_action=0 and id=$1';
+    end if;
+
+    for c_raw_rec in execute l_raw_loop_query using a_raw_id
         loop
             /* process the result row */
             l_error_message := NULL;
             l_processed_status := NULL;
 
             call ${schemaName}.prc_pre_process(c_raw_rec.id, l_raw_full_name, l_buf_full_name,
-                                 l_prc_exec_full_name, l_processed_status, l_error_message, l_buf_id);
+                                               l_prc_exec_full_name, l_processed_status, l_error_message, l_buf_id);
 
-            call ${schemaName}.prc_post_process(c_raw_rec.id, l_raw_full_name, l_processed_status, l_error_message, a_msg);
+           if l_attempt <> -1 and c_raw_rec.s_counter + 1 >= l_attempt and l_processed_status = -3 then
+                l_processed_status := 3;
+            end if;
+
+            call ${schemaName}.prc_post_process(c_raw_rec.id, l_raw_full_name, l_processed_status, l_error_message,
+                                                a_msg);
 
             if l_processed_status <> 0 then
                 l_count := l_count + 1;

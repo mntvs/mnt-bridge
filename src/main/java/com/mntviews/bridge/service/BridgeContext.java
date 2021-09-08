@@ -16,7 +16,6 @@ import com.mntviews.bridge.service.exception.BridgeContextException;
 import com.mntviews.bridge.service.impl.BridgeServiceImpl;
 import lombok.Getter;
 
-import java.math.BigDecimal;
 import java.sql.Connection;
 import java.util.Objects;
 
@@ -32,6 +31,7 @@ public class BridgeContext {
     private final BridgeService bridgeService;
     private final String schemaName;
     private final DataBaseType dataBaseType;
+    private final String param;
 
     @Getter
     private MetaData metaData;
@@ -61,6 +61,7 @@ public class BridgeContext {
         this.connectionData = new ConnectionData(builder.connectionData.getUrl(), builder.connectionData.getUserName()
                 , builder.connectionData.getPassword(), Objects.requireNonNullElse(builder.connectionData.getSchemaName()
                 , this.schemaName));
+        this.param = builder.param;
     }
 
     private void checkMetaData() {
@@ -69,18 +70,18 @@ public class BridgeContext {
     }
 
     public void execute() {
-        checkMetaData();
-        bridgeService.execute(metaData, this.dataBaseType.getConnection(connectionData), bridgeProcessing, connectionData.getSchemaName());
+        execute(null);
     }
 
-    public void saveRawData(RawData rawData) {
+    public void execute(Long rawId) {
         checkMetaData();
-        bridgeService.saveRawData(this.dataBaseType.getConnection(connectionData), metaData, rawData);
+        bridgeService.execute(metaData, this.dataBaseType.getConnection(connectionData), bridgeProcessing, connectionData.getSchemaName(), rawId);
     }
 
-    public RawData findRawDataById(Long id) {
-        return findRawDataById(id, this.dataBaseType.getConnection(connectionData));
+    public Connection getConnectionData() {
+        return this.dataBaseType.getConnection(connectionData);
     }
+
 
     public RawData findRawDataById(Long id, Connection connection) {
         checkMetaData();
@@ -88,19 +89,14 @@ public class BridgeContext {
 
     }
 
-    public BufData findBufDataById(Long id) {
+    public RawData saveRawData(RawData rawData, Connection connection) {
         checkMetaData();
-        return findBufDataById(id, this.dataBaseType.getConnection(connectionData));
+        return bridgeService.saveRawData(connection, metaData, rawData);
     }
 
     public BufData findBufDataById(Long id, Connection connection) {
         checkMetaData();
         return bridgeService.findBufDataById(connection, metaData, id);
-    }
-
-    public BufData findBufDataByRawId(Long id) {
-        checkMetaData();
-        return findBufDataByRawId(id, this.dataBaseType.getConnection(connectionData));
     }
 
 
@@ -120,7 +116,7 @@ public class BridgeContext {
 
 
     public void init() {
-        metaData = dataBaseType.init(connectionData, groupTag, metaTag, schemaName);
+        metaData = dataBaseType.init(connectionData, groupTag, metaTag, schemaName, param);
     }
 
     public void clear() {
@@ -144,6 +140,7 @@ public class BridgeContext {
         private BridgeService bridgeService;
         private DataBaseInitService dataBaseInitService;
         private DataBaseType dataBaseType;
+        private String param;
 
         public Builder(String groupTag, String metaTag, ConnectionData connectionData) {
             this.groupTag = groupTag;
@@ -171,6 +168,12 @@ public class BridgeContext {
 
         public Builder withDataBaseType(DataBaseType dataBaseType) {
             this.dataBaseType = dataBaseType;
+            return this;
+        }
+
+
+        public Builder withParam(String param) {
+            this.param = param;
             return this;
         }
 

@@ -1,15 +1,12 @@
 package com.mntviews.bridge.service;
 
 
+import com.mntviews.bridge.common.BaseInit;
 import com.mntviews.bridge.common.ContainerUnit;
-import com.mntviews.bridge.common.OracleContainerUnit;
-import com.mntviews.bridge.common.PostgresContainerUnit;
 import com.mntviews.bridge.model.ConnectionData;
 import com.mntviews.bridge.model.MetaData;
 import com.mntviews.bridge.model.RawData;
 import lombok.extern.java.Log;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -18,16 +15,17 @@ import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.ResultSetExtractor;
 
+import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static com.mntviews.bridge.common.ContainerUnit.*;
+import static com.mntviews.bridge.service.BridgeUtil.STATUS_INTACT;
+import static com.mntviews.bridge.service.BridgeUtil.STATUS_SUCCESS;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.isA;
 import static org.mockito.ArgumentMatchers.isNull;
@@ -35,49 +33,18 @@ import static org.mockito.Mockito.doNothing;
 
 @Log
 @ExtendWith(MockitoExtension.class)
-public class BridgeContextTest {
+public class BridgeContextTest extends BaseInit {
 
     @Mock
     BridgeService bridgeService;
 
-    private List<ContainerUnit> containerUnitList;
-
-    @BeforeEach
-    public void init() {
-
-        containerUnitList = new ArrayList<>();
-        log.info("OracleContainerUnit init");
-        OracleContainerUnit oracleContainerUnit = new OracleContainerUnit();
-        oracleContainerUnit.getBridgeContext().migrate(true);
-        oracleContainerUnit.getBridgeContext().clear();
-        oracleContainerUnit.getBridgeContext().init();
-
-        containerUnitList.add(oracleContainerUnit);
-
-        log.info("PostgresContainerUnit init");
-        PostgresContainerUnit postgresContainerUnit = new PostgresContainerUnit();
-        postgresContainerUnit.getBridgeContext().migrate(true);
-        postgresContainerUnit.getBridgeContext().clear();
-        postgresContainerUnit.getBridgeContext().init();
-        containerUnitList.add(postgresContainerUnit);
-
-    }
-
-    @AfterEach
-    public void clear() {
-
-        containerUnitList.forEach(containerUnit -> containerUnit.getBridgeContext().clear());
-    }
-
-
     @Test
     public void executeBridgeContextTest() {
-        doNothing().when(bridgeService).execute(isA(MetaData.class), isNull(), isA(BridgeProcessing.class), isA(String.class));
+        doNothing().when(bridgeService).execute(isA(MetaData.class), isNull(), isA(BridgeProcessing.class), isA(String.class), isNull());
 
         BridgeContext bridgeContext = BridgeContext
                 .custom("GROUP_TAG", "META_TAG", new ConnectionData("URL", "USER_NAME", "PASSWORD", "DEFAULT_SCHEMA"))
                 .withBridgeProcessing((connection, processData) -> {
-
                 })
                 .withBridgeService(bridgeService)
                 .withDataBaseType(DataBaseType.TEST)
@@ -191,7 +158,7 @@ public class BridgeContextTest {
 
 
     @Test
-    void rawDataTest() {
+    void rawDataTest() throws SQLException {
         for (ContainerUnit containerUnit : containerUnitList) {
             String dbTypeName = containerUnit.findDbTypeName();
             log.info(dbTypeName);
@@ -199,12 +166,39 @@ public class BridgeContextTest {
             RawData rawData = new RawData();
             rawData.setFId("1");
             rawData.setFPayload("test");
-            bridgeContext.saveRawData(rawData);
+            Connection connection = bridgeContext.getConnection();
+            bridgeContext.saveRawData(rawData, connection);
             rawData.setFPayload("test_edited");
-            bridgeContext.saveRawData(rawData);
-            assertEquals("test",bridgeContext.findRawDataById(rawData.getId()).getFPayload());
+            bridgeContext.saveRawData(rawData, connection);
+            connection.commit();
+            assertEquals("test",bridgeContext.findRawDataById(rawData.getId(), connection).getFPayload());
             bridgeContext.execute();
-            assertNotNull(bridgeContext.findBufDataById(bridgeContext.findBufDataByRawId(rawData.getId()).getId()));
+            assertNotNull(bridgeContext.findBufDataById(bridgeContext.findBufDataByRawId(rawData.getId(), connection).getId(), connection));
+            connection.commit();
         }
     }
+
+
+    @Test
+    void checkOneRowTest() {
+        for (ContainerUnit containerUnit : containerUnitList) {
+            String dbTypeName = containerUnit.findDbTypeName();
+            log.info(dbTypeName);
+            BridgeContext bridgeContext = containerUnit.getBridgeContext();
+
+            containerUnit.getJdbcTemplate().update(containerUnit.wrapCodeBlock(
+                    "BEGIN " +
+                            "                insert into " + SCHEMA_NAME + ".fbi_raw_" + META_TAG + " (id, f_id) values (1, 'f_id_1');\n" +
+                            "                insert into " + SCHEMA_NAME + ".fbi_raw_" + META_TAG + " (id, f_id) values (2, 'f_id_2');\n" +
+                            "END;"));
+
+            bridgeContext.execute(1L);
+            Integer intactCount = containerUnit.getJdbcTemplate().queryForObject("select count(*) from " + SCHEMA_NAME + ".fbi_raw_" + META_TAG + " where s_status=" + STATUS_INTACT + " and id=2", Integer.class);
+            assertEquals(1, intactCount, dbTypeName + ": Row with intact status must be 1");
+
+            Integer successCount = containerUnit.getJdbcTemplate().queryForObject("select count(*) from " + SCHEMA_NAME + ".fbi_raw_" + META_TAG + " where s_status=" + STATUS_SUCCESS + " and id=1", Integer.class);
+            assertEquals(1, successCount, dbTypeName + ": Row with success status must be 1");
+        }
+    }
+
 }

@@ -12,7 +12,7 @@ import java.util.Properties;
 public class MetaInitPostgresqlRepoImpl extends MetaInit {
 
     @Override
-    public Connection findConnection(ConnectionData connectionData) {
+    public Connection getConnection(ConnectionData connectionData) {
         Properties props = new Properties();
         props.setProperty("user", connectionData.getUserName());
         props.setProperty("password", connectionData.getPassword());

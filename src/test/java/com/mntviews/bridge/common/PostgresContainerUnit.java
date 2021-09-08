@@ -19,13 +19,14 @@ public class PostgresContainerUnit extends ContainerUnit {
 
     public PostgresContainerUnit() {
         connectionData = new ConnectionData(DB_URL, USER_NAME, USER_PASSWORD, BridgeContext.DEFAULT_SCHEMA_NAME);
-
+        attemptTestParam = "{\"ORDER\": \"LIFO\",\"ATTEMPT\": 2}";
         bridgeContext = BridgeContext
                 .custom(GROUP_TAG, META_TAG, connectionData)
                 .withBridgeProcessing((connection, processData) -> {
                     if (processData.getRawId()%2 == 0)
                         throw new RuntimeException(TEST_EXCEPTION_TEXT);
                 })
+                .withParam("{\"ORDER\": \"LIFO\",\"ATTEMPT\": -1}")
                 .withSchemaName(SCHEMA_NAME)
                 .withDataBaseType(DataBaseType.POSTGRESQL)
                 .build();
@@ -83,6 +84,21 @@ public class PostgresContainerUnit extends ContainerUnit {
                         "end;\n" +
                         "$f1$;\n" +
                         "                   $string$, '" + bridgeContext.getMetaData().getPrcExecFullName() + "', lower('" + bridgeContext.getMetaData().getPrcExecName() + "')); end;";
+
+            case "EXCEPTION3" :
+                return "begin EXECUTE format(\n" +
+                        "                $string$ create or replace procedure %s(a_raw_id bigint, a_buf_id bigint)\n" +
+                        "                   language plpgsql\n" +
+                        "                   as\n" +
+                        "$f1$\n" +
+                        "begin\n" +
+                        "    raise exception '" + TEST_EXCEPTION_TEXT + "' USING ERRCODE = '20993'; \n" +
+                        "exception when others then\n" +
+                        "    raise exception '%s error : %% {buf.id=%%}', sqlerrm, a_buf_id USING ERRCODE=sqlstate; \n" +
+                        "end;\n" +
+                        "$f1$;\n" +
+                        "                   $string$, '" + bridgeContext.getMetaData().getPrcExecFullName() + "', lower('" + bridgeContext.getMetaData().getPrcExecName() + "')); end;";
+
             default : throw new RuntimeException("typeTag not found {" + typeTag + "}");
         }
     }

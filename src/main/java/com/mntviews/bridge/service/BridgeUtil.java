@@ -4,7 +4,14 @@ import java.io.*;
 import java.util.Properties;
 
 public class BridgeUtil {
-    public static Properties BUILD_INFO;
+    public final static Properties BUILD_INFO;
+
+    public final static int STATUS_INTACT = 0;
+    public final static int STATUS_SUCCESS = 1;
+    public final static int STATUS_CANCELED = 5;
+    public final static int STATUS_ERROR = -3;
+    public final static int STATUS_ERROR_UNREPEATABLE = 3;
+    public static final String PARAM_ORDER = "ORDER" ;
 
     public static String findNameServer() {
         String s;

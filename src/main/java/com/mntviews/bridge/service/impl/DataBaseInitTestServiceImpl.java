@@ -25,7 +25,7 @@ public class DataBaseInitTestServiceImpl extends DataBaseInit {
     }
 
     @Override
-    public MetaData init(ConnectionData connectionData, String groupTag, String metaTag, String schemaName) {
+    public MetaData init(ConnectionData connectionData, String groupTag, String metaTag, String schemaName, String param) {
         return new MetaData();
     }
 

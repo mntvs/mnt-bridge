@@ -9,7 +9,6 @@ import lombok.Getter;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.sql.Connection;
-import java.sql.SQLException;
 
 public abstract class ContainerUnit {
     public final static String GROUP_TAG = "TEST_GROUP";
@@ -33,6 +32,9 @@ public abstract class ContainerUnit {
 
     protected MetaDataRepo metaDataRepo = new MetaDataRepoImpl();
     protected MetaData metaData;
+
+
+    public String attemptTestParam;
 
     @Getter
     protected BridgeContext bridgeContext;
