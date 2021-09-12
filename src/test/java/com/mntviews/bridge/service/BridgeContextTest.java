@@ -24,8 +24,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static com.mntviews.bridge.common.ContainerUnit.*;
-import static com.mntviews.bridge.service.BridgeUtil.STATUS_INTACT;
-import static com.mntviews.bridge.service.BridgeUtil.STATUS_SUCCESS;
+import static com.mntviews.bridge.service.BridgeUtil.*;
+import static com.mntviews.bridge.service.BridgeUtil.STATUS_ERROR_UNREPEATABLE;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.isA;
 import static org.mockito.ArgumentMatchers.isNull;
@@ -40,11 +40,13 @@ public class BridgeContextTest extends BaseInit {
 
     @Test
     public void executeBridgeContextTest() {
-        doNothing().when(bridgeService).execute(isA(MetaData.class), isNull(), isA(BridgeProcessing.class), isA(String.class), isNull());
+        doNothing().when(bridgeService).execute(isA(MetaData.class), isNull(), isA(BridgeProcessing.class), isA(BridgeProcessing.class), isA(String.class), isNull(), isNull());
 
         BridgeContext bridgeContext = BridgeContext
                 .custom("GROUP_TAG", "META_TAG", new ConnectionData("URL", "USER_NAME", "PASSWORD", "DEFAULT_SCHEMA"))
-                .withBridgeProcessing((connection, processData) -> {
+                .withBridgeAfterProcessing((connection, processData) -> {
+                })
+                .withBridgeBeforeProcessing((connection, processData) -> {
                 })
                 .withBridgeService(bridgeService)
                 .withDataBaseType(DataBaseType.TEST)
@@ -73,13 +75,13 @@ public class BridgeContextTest extends BaseInit {
                 @Override
                 public Void extractData(ResultSet rs) throws SQLException, DataAccessException {
                     while (rs.next()) {
-                        if (rs.getLong(1) %2 == 0) {
+                        if (rs.getLong(1) % 2 == 0) {
                             assertEquals(-3, rs.getLong(2));
                             assertEquals(0, rs.getLong(3));
                             assertEquals(ContainerUnit.TEST_EXCEPTION_TEXT, rs.getString(4));
                         }
 
-                        if (rs.getLong(1) %2 != 0) {
+                        if (rs.getLong(1) % 2 != 0) {
                             assertEquals(1, rs.getLong(2));
                             assertEquals(1, rs.getLong(3));
                             assertNull(rs.getString(4));
@@ -89,7 +91,7 @@ public class BridgeContextTest extends BaseInit {
                 }
             });
 
-            int count=jdbcTemplate.queryForObject("SELECT COUNT(*) FROM " + SCHEMA_NAME + ".fbi_buf_" + META_TAG, Integer.class);
+            int count = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM " + SCHEMA_NAME + ".fbi_buf_" + META_TAG, Integer.class);
 
             assertEquals(count, 1);
         }
@@ -145,7 +147,7 @@ public class BridgeContextTest extends BaseInit {
                 assertEquals(ITEMS_COUNT, counterCount, "Counter count raw");
                 counterCount = jdbcTemplate.queryForObject("select sum(s_counter) from " + SCHEMA_NAME + ".fbi_raw_" + META_TAG + " where  s_status=-3", Integer.class);
 
-                int count=jdbcTemplate.queryForObject("SELECT COUNT(*) FROM " + SCHEMA_NAME + ".fbi_buf_" + META_TAG, Integer.class);
+                int count = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM " + SCHEMA_NAME + ".fbi_buf_" + META_TAG, Integer.class);
                 assertEquals(count, ITEMS_COUNT);
                 System.out.println("counterCount=" + counterCount);
             } catch (InterruptedException ex) {
@@ -171,7 +173,7 @@ public class BridgeContextTest extends BaseInit {
             rawData.setFPayload("test_edited");
             bridgeContext.saveRawData(rawData, connection);
             connection.commit();
-            assertEquals("test",bridgeContext.findRawDataById(rawData.getId(), connection).getFPayload());
+            assertEquals("test", bridgeContext.findRawDataById(rawData.getId(), connection).getFPayload());
             bridgeContext.execute();
             assertNotNull(bridgeContext.findBufDataById(bridgeContext.findBufDataByRawId(rawData.getId(), connection).getId(), connection));
             connection.commit();
@@ -198,6 +200,33 @@ public class BridgeContextTest extends BaseInit {
 
             Integer successCount = containerUnit.getJdbcTemplate().queryForObject("select count(*) from " + SCHEMA_NAME + ".fbi_raw_" + META_TAG + " where s_status=" + STATUS_SUCCESS + " and id=1", Integer.class);
             assertEquals(1, successCount, dbTypeName + ": Row with success status must be 1");
+        }
+    }
+
+    @Test
+    void checkAttemptParam() {
+        for (ContainerUnit containerUnit : containerUnitList) {
+            String dbTypeName = containerUnit.findDbTypeName();
+            log.info(dbTypeName);
+
+            BridgeContext bridgeContextAttempt = containerUnit.getBridgeContextAttempt();
+            bridgeContextAttempt.init();
+
+            containerUnit.getJdbcTemplate().update(containerUnit.wrapCodeBlock(
+                    "BEGIN " +
+                            "                insert into " + SCHEMA_NAME + ".fbi_raw_" + META_TAG + " (id, f_id) values (1, 'f_id_1');\n" +
+                            "END;"));
+
+            bridgeContextAttempt.execute();
+
+            Integer count = containerUnit.getJdbcTemplate().queryForObject("select count(*) from " + SCHEMA_NAME + ".fbi_raw_" + META_TAG + " where s_status=" + STATUS_ERROR + " and s_action=0 and id=1", Integer.class);
+            assertEquals(1, count, dbTypeName + ": Row with error status must be 1");
+
+            bridgeContextAttempt.execute();
+
+            count = containerUnit.getJdbcTemplate().queryForObject("select count(*) from " + SCHEMA_NAME + ".fbi_raw_" + META_TAG + " where s_status=" + STATUS_ERROR_UNREPEATABLE + " and s_action=1 and id=1 and s_counter=2", Integer.class);
+            assertEquals(1, count, dbTypeName + ": Row with unrepeatable error status must be 1");
+
         }
     }
 

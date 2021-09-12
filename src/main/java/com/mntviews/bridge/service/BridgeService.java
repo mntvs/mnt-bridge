@@ -5,10 +5,11 @@ import com.mntviews.bridge.model.MetaData;
 import com.mntviews.bridge.model.RawData;
 
 import java.sql.Connection;
+import java.util.Map;
 
 public interface BridgeService {
 
-    void execute(MetaData metaData, Connection connection, BridgeProcessing bridgeProcessing, String schemaName, Long rawId);
+    void execute(MetaData metaData, Connection connection, BridgeProcessing bridgeBeforeProcessing, BridgeProcessing bridgeAfterProcessing, String schemaName, Long rawId, Map<String, Object> param);
 
     MetaData findMetaData(String groupTag, String metaTag, Connection connection, String schemaName);
 

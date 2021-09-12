@@ -12,6 +12,7 @@ import com.mntviews.bridge.service.BridgeService;
 import lombok.RequiredArgsConstructor;
 
 import java.sql.Connection;
+import java.util.Map;
 
 @RequiredArgsConstructor
 public class BridgeServiceImpl implements BridgeService {
@@ -22,9 +23,8 @@ public class BridgeServiceImpl implements BridgeService {
     private final BufRepo bufRepo;
 
     @Override
-    public void execute(MetaData metaData, Connection connection, BridgeProcessing bridgeProcessing, String schemaName, Long rawId) {
-
-            rawLoopRepo.rawLoop(connection, metaData, bridgeProcessing, schemaName, rawId);
+    public void execute(MetaData metaData, Connection connection, BridgeProcessing bridgeBeforeProcessing, BridgeProcessing bridgeAfterProcessing, String schemaName, Long rawId, Map<String, Object> param) {
+        rawLoopRepo.rawLoop(connection, metaData, bridgeBeforeProcessing, bridgeAfterProcessing, schemaName, rawId, param);
     }
 
     @Override
@@ -34,7 +34,7 @@ public class BridgeServiceImpl implements BridgeService {
 
     @Override
     public RawData saveRawData(Connection connection, MetaData metaData, RawData rawData) {
-        return rawRepo.saveRawData(connection,metaData.getRawFullName(),rawData);
+        return rawRepo.saveRawData(connection, metaData.getRawFullName(), rawData);
     }
 
     @Override

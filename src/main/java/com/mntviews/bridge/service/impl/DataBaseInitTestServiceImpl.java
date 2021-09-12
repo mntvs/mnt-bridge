@@ -5,9 +5,8 @@ import com.mntviews.bridge.model.MetaData;
 import com.mntviews.bridge.repository.MetaDataRepo;
 import com.mntviews.bridge.repository.MetaInitRepo;
 import com.mntviews.bridge.repository.impl.MetaDataRepoImpl;
-import com.mntviews.bridge.service.DataBaseInitService;
 
-import java.sql.Connection;
+import java.util.Map;
 
 public class DataBaseInitTestServiceImpl extends DataBaseInit {
 
@@ -25,7 +24,7 @@ public class DataBaseInitTestServiceImpl extends DataBaseInit {
     }
 
     @Override
-    public MetaData init(ConnectionData connectionData, String groupTag, String metaTag, String schemaName, String param) {
+    public MetaData init(ConnectionData connectionData, String groupTag, String metaTag, String schemaName, Map<String, Object> param) {
         return new MetaData();
     }
 

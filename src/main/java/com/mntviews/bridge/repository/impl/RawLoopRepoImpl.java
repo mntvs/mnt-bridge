@@ -9,9 +9,12 @@ import com.mntviews.bridge.repository.exception.RawLoopRepoException;
 import com.mntviews.bridge.repository.exception.UnrepeatableStatusException;
 import com.mntviews.bridge.service.BridgeProcessing;
 import com.mntviews.bridge.service.BridgeUtil;
+import com.mntviews.bridge.service.ParamEnum;
 import lombok.RequiredArgsConstructor;
 
 import java.sql.*;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
 @RequiredArgsConstructor
@@ -21,40 +24,55 @@ public class RawLoopRepoImpl implements RawLoopRepo {
      * Main loop to process raw queue
      * TODO: Modify to start with only provided raw_id
      * TODO: Option to change order
-     *  @param connection       opened connection with db
      *
+     * @param connection       opened connection with db
      * @param metaData         system data received from db
      * @param bridgeProcessing outer procedure to process current raw
      * @param schemaName       schema name for system system objects
      * @param rawId
+     * @param param
      */
     @Override
-    public void rawLoop(Connection connection, MetaData metaData, BridgeProcessing bridgeProcessing, String schemaName, Long rawId) {
+    public void rawLoop(Connection connection, MetaData metaData, BridgeProcessing bridgeBeforeProcessing, BridgeProcessing bridgeAfterProcessing, String schemaName, Long rawId, Map<String, Object> param) {
         AtomicInteger count = new AtomicInteger();
-
+        Map<String, Object> localParam = new HashMap<>();
+        localParam.putAll(metaData.getParam());
+        if (param != null)
+            localParam.putAll(param);
         String rawLoopQuery;
         if (rawId == null) {
-            Object paramOrder = metaData.getParam().get(BridgeUtil.PARAM_ORDER);
+            Object paramOrder = localParam.get(ParamEnum.ORDER.name());
             if (paramOrder == null)
-                throw new RawLoopRepoException("parameter '" + BridgeUtil.PARAM_ORDER + "' is not defined");
+                throw new RawLoopRepoException("parameter '" + ParamEnum.ORDER.name() + "' is not defined");
 
             if (!(paramOrder instanceof String))
-                throw new RawLoopRepoException("parameter '" + BridgeUtil.PARAM_ORDER + "' is must be String");
+                throw new RawLoopRepoException("parameter '" + ParamEnum.ORDER.name() + "' is must be String");
 
             switch ((String) paramOrder) {
                 case "LIFO":
-                    rawLoopQuery = "select id from " + metaData.getRawFullName() + " where s_action=0 order by s_date desc, id desc";
+                    rawLoopQuery = "select id, s_counter from " + metaData.getRawFullName() + " where s_action=0 order by s_date desc, id desc";
                     break;
                 case "FIFO":
-                    rawLoopQuery = "select id from " + metaData.getRawFullName() + " where s_action=0 order by s_date asc, id asc";
+                    rawLoopQuery = "select id, s_counter from " + metaData.getRawFullName() + " where s_action=0 order by s_date asc, id asc";
                     break;
                 default:
                     throw new RawLoopRepoException("Parameter '" + BridgeUtil.PARAM_ORDER + "' must be FIFO or LIFO");
             }
 
-        }
-        else
-            rawLoopQuery = "select id from " + metaData.getRawFullName() + " where s_action=0 and id=?";
+        } else
+            rawLoopQuery = "select id, s_counter from " + metaData.getRawFullName() + " where s_action=0 and id=?";
+
+        Object paramAttempt = localParam.get(ParamEnum.ATTEMPT.name());
+        if (paramAttempt == null)
+            throw new RawLoopRepoException("parameter '" + ParamEnum.ATTEMPT.name() + "' is not defined");
+
+        if (paramAttempt instanceof String)
+            paramAttempt = Integer.valueOf(String.valueOf(paramAttempt));
+
+        if (!(paramAttempt instanceof Integer))
+            throw new RawLoopRepoException("parameter '" + ParamEnum.ATTEMPT.name() + "' is must be Integer");
+
+
         try (PreparedStatement stmt = connection.prepareStatement(rawLoopQuery)) {
             if (rawId != null)
                 stmt.setLong(1, rawId);
@@ -68,10 +86,12 @@ public class RawLoopRepoImpl implements RawLoopRepo {
                     processData.setProcessedStatus(processedStatus);
                     processData.setErrorMessage(errorMessage);
                     preProcess(connection, processData, schemaName);
+
+
                     if (processData.getProcessedStatus() == 1) {
                         try {
-                            if (bridgeProcessing != null)
-                                bridgeProcessing.process(connection, processData);
+                            if (bridgeBeforeProcessing != null)
+                                bridgeBeforeProcessing.process(connection, processData);
                         } catch (UnrepeatableStatusException e) {
                             processData.setProcessedStatus(BridgeUtil.STATUS_ERROR_UNREPEATABLE);
                             processData.setErrorMessage(e.getMessage());
@@ -81,8 +101,29 @@ public class RawLoopRepoImpl implements RawLoopRepo {
 
                         }
                     }
-                    if (processData.getProcessedStatus() == BridgeUtil.STATUS_ERROR)
+                    if (processData.getProcessedStatus() == 1)
+                        process(connection, processData, schemaName);
+
+                    if (processData.getProcessedStatus() == 1) {
+                        try {
+                            if (bridgeAfterProcessing != null)
+                                bridgeAfterProcessing.process(connection, processData);
+                        } catch (UnrepeatableStatusException e) {
+                            processData.setProcessedStatus(BridgeUtil.STATUS_ERROR_UNREPEATABLE);
+                            processData.setErrorMessage(e.getMessage());
+                        } catch (Exception e) {
+                            processData.setProcessedStatus(BridgeUtil.STATUS_ERROR);
+                            processData.setErrorMessage(e.getMessage());
+
+                        }
+                    }
+                    if (processData.getProcessedStatus() != BridgeUtil.STATUS_SUCCESS)
                         connection.rollback();
+
+                    if ((Integer) paramAttempt != -1 && rs.getInt("s_counter") + 1 >= (Integer) paramAttempt && processData.getProcessedStatus() == BridgeUtil.STATUS_ERROR) {
+                        processData.setProcessedStatus(BridgeUtil.STATUS_ERROR_UNREPEATABLE);
+                    }
+
                     postProcess(connection, processData, schemaName);
                     connection.commit();
                 }
@@ -131,6 +172,22 @@ public class RawLoopRepoImpl implements RawLoopRepo {
             prcPostProcess.setString(4, processData.getErrorMessage());
 
             prcPostProcess.execute();
+        } catch (Exception e) {
+            throw new PostProcessRepoException(e);
+        }
+    }
+
+    @Override
+    public void process(Connection connection, ProcessData processData, String schemaName) {
+        try (CallableStatement prcProcess = connection.prepareCall(String.format("{ call %s.prc_process(?,?,?,?,?) }", schemaName))) {
+
+            prcProcess.setLong(1, processData.getRawId());
+            prcProcess.setLong(2, processData.getBufId());
+            prcProcess.setString(3, processData.getMetaData().getPrcExecFullName());
+            prcProcess.setInt(4, processData.getProcessedStatus());
+            prcProcess.setString(5, processData.getErrorMessage());
+
+            prcProcess.execute();
         } catch (Exception e) {
             throw new PostProcessRepoException(e);
         }

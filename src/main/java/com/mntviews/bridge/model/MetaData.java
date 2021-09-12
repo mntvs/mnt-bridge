@@ -3,7 +3,7 @@ package com.mntviews.bridge.model;
 import lombok.Data;
 
 import java.math.BigDecimal;
-import java.util.HashMap;
+import java.util.Map;
 
 @Data
 public class MetaData {
@@ -16,6 +16,6 @@ public class MetaData {
     String bufFullName;
     String prcExecName;
     String prcExecFullName;
-    HashMap<String,Object> param;
+    Map<String,Object> param;
     String paramType;
 }

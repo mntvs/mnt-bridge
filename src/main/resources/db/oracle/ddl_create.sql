@@ -117,7 +117,8 @@ $$
 
 
 create or replace procedure ${schemaName}.prc_create_meta_by_tag(a_group_tag VARCHAR2, a_meta_tag VARCHAR2,
-                                                                 a_schema_name VARCHAR2 DEFAULT NULL, a_param VARCHAR2 DEFAULT NULL)
+                                                                 a_schema_name VARCHAR2 DEFAULT NULL,
+                                                                 a_param VARCHAR2 DEFAULT NULL)
 as
     l_raw_full_name      VARCHAR2(100);
     l_buf_full_name      VARCHAR2(100);
@@ -502,8 +503,6 @@ begin
         into l_raw_id,l_raw_f_id,l_raw_f_payload,l_raw_f_date,l_raw_s_status
         using a_raw_id;
 
-    SAVEPOINT sp_buf;
-
     execute immediate 'merge into ' || a_buf_full_name ||
                       ' a using (select :1 as raw_id, :2 raw_f_id, :3 raw_f_payload, :4 f_date from dual) b on (a.f_id = b.raw_f_id) when not matched then ' ||
                       'insert (f_raw_id,f_id, f_payload, f_date, s_counter) values (b.raw_id, b.raw_f_id, b.raw_f_payload, b.f_date, 1) when matched then ' ||
@@ -511,7 +510,6 @@ begin
         l_raw_id,l_raw_f_id,l_raw_f_payload, l_raw_f_date, l_raw_f_date,l_raw_f_date, l_raw_id;
 
     if SQL%ROWCOUNT > 0 then
-        execute immediate 'begin ' || a_prc_exec_full_name || ' (:1,:2); end;' using l_raw_id,l_buf_id;
         a_buf_id := l_buf_id;
         l_raw_s_status := 1; -- Success
     else
@@ -522,7 +520,6 @@ begin
     -- processing finished successfully
 exception
     when no_data_found then
-        ROLLBACK TO sp_buf;
         a_processed_status := 0; -- processing not happened. Omitted
         a_error_message := '';
     when others then
@@ -531,8 +528,24 @@ exception
         else
             a_processed_status := -3; -- processing happened with error
         end if;
+        a_error_message := sqlerrm;
+end;
+$$
 
-        ROLLBACK TO sp_buf;
+create or replace procedure ${schemaName}.prc_process(a_raw_id IN NUMBER, a_buf_id IN NUMBER,
+                                                      a_prc_exec_full_name IN VARCHAR2,
+                                                      a_processed_status IN OUT NUMBER,
+                                                      a_error_message IN OUT VARCHAR2)
+as
+begin
+    execute immediate 'begin ' || a_prc_exec_full_name || ' (:1,:2); end;' using a_raw_id,a_buf_id;
+exception
+    when others then
+        if sqlcode = -20993 then
+            a_processed_status := 3; -- unrepeatable status
+        else
+            a_processed_status := -3; -- processing happened with error
+        end if;
         a_error_message := sqlerrm;
 end;
 $$
@@ -554,7 +567,8 @@ $$
 
 
 create or replace procedure ${schemaName}.prc_start_task(a_group_tag VARCHAR2, a_meta_tag VARCHAR2,
-                                                         a_raw_id NUMBER DEFAULT NULL, a_msg IN CLOB default NULL)
+                                                         a_raw_id NUMBER DEFAULT NULL, a_msg IN CLOB default NULL,
+                                                         a_param IN VARCHAR2 default null)
 as
     l_count              NUMBER := 0;
     l_error_message      VARCHAR2(4000);
@@ -574,16 +588,22 @@ begin
     select raw_full_name,
            buf_full_name,
            prc_exec_full_name,
-           case extract(XMLType(param), 'PARAM/ORDER/text()').getStringVal()
-               when 'FIFO' then 'select id, s_counter from ' || raw_full_name || ' where s_action=0 order by s_date asc, id asc'
-               when 'LIFO' then 'select id, s_counter from ' || raw_full_name || ' where s_action=0 order by s_date desc, id desc'
+           case extract(param, 'PARAM/ORDER/text()').getStringVal()
+               when 'FIFO' then 'select id, s_counter from ' || raw_full_name ||
+                                ' where s_action=0 order by s_date asc, id asc'
+               when 'LIFO' then 'select id, s_counter from ' || raw_full_name ||
+                                ' where s_action=0 order by s_date desc, id desc'
                end
             ,
-           nvl(extract(XMLType(param), 'PARAM/ATTEMPT/text()').getNumberVal(), -1)
+           nvl(extract(param, 'PARAM/ATTEMPT/text()').getNumberVal(), -1)
     into l_raw_full_name,l_buf_full_name,l_prc_exec_full_name,l_raw_loop_query,l_attempt
-    from ${schemaName}.BRIDGE_META_V
-    where GROUP_tag = a_group_tag
-      and META_TAG = a_meta_tag;
+    from (select raw_full_name,
+                 buf_full_name,
+                 prc_exec_full_name,
+                 XMLType(nvl(a_param, param)) param
+          from ${schemaName}.BRIDGE_META_V
+          where GROUP_tag = a_group_tag
+            and META_TAG = a_meta_tag);
 
 
     if a_raw_id is null then
@@ -592,7 +612,8 @@ begin
         end if;
         open c_raw_rec for l_raw_loop_query;
     else
-        open c_raw_rec for 'select id, s_counter from ' || l_raw_full_name || ' where s_action=0 and id=:1' using a_raw_id;
+        open c_raw_rec for 'select id, s_counter from ' || l_raw_full_name ||
+                           ' where s_action=0 and id=:1' using a_raw_id;
     end if;
 
     loop
@@ -604,8 +625,17 @@ begin
         ${schemaName}.prc_pre_process(l_raw_id, l_raw_full_name, l_buf_full_name,
                                       l_prc_exec_full_name, l_processed_status, l_error_message, l_buf_id);
 
-        if l_attempt <> -1 and l_counter +1 >= l_attempt and l_processed_status = -3 then
+
+        if l_processed_status = 1 then
+            ${schemaName}.prc_process(l_raw_id, l_buf_id, l_prc_exec_full_name, l_processed_status, l_error_message);
+        end if;
+
+        if l_attempt <> -1 and l_counter + 1 >= l_attempt and l_processed_status = -3 then
             l_processed_status := 3;
+        end if;
+
+        if l_processed_status <> 1 then
+            rollback;
         end if;
 
         ${schemaName}.prc_post_process(l_raw_id, l_raw_full_name, l_processed_status, l_error_message, a_msg);

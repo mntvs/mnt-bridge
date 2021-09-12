@@ -6,13 +6,14 @@ import com.mntviews.bridge.model.MetaData;
 import com.mntviews.bridge.repository.MetaDataRepo;
 import com.mntviews.bridge.repository.exception.MetaDataRepoException;
 import com.mntviews.bridge.service.BridgeContext;
+import com.mntviews.bridge.service.ParamTypeEnum;
 import lombok.RequiredArgsConstructor;
 
 import javax.xml.bind.annotation.XmlType;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
-import java.util.HashMap;
+import java.util.Map;
 
 @RequiredArgsConstructor
 public class MetaDataRepoImpl implements MetaDataRepo {
@@ -41,12 +42,7 @@ public class MetaDataRepoImpl implements MetaDataRepo {
                     if (param == null)
                         throw new MetaDataRepoException("MetaData.param must be not null");
 
-                    switch (metaData.getParamType()) {
-                        case "JSON" : metaData.setParam(new ObjectMapper().readValue(rs.getString("param"), HashMap.class)); break;
-                        case "XML" :  metaData.setParam(new XmlMapper().readValue(rs.getString("param"),HashMap.class)); break;
-                    }
-
-
+                    metaData.setParam(ParamTypeEnum.valueOf(metaData.getParamType()).toValue(rs.getString("param")));
                     return metaData;
                 }
 

@@ -3,10 +3,13 @@ package com.mntviews.bridge.common;
 import com.mntviews.bridge.model.ConnectionData;
 import com.mntviews.bridge.service.BridgeContext;
 import com.mntviews.bridge.service.DataBaseType;
+import com.mntviews.bridge.service.ParamEnum;
 import org.postgresql.ds.PGSimpleDataSource;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.sql.SQLException;
+import java.util.HashMap;
+import java.util.Map;
 
 
 public class PostgresContainerUnit extends ContainerUnit {
@@ -22,11 +25,22 @@ public class PostgresContainerUnit extends ContainerUnit {
         attemptTestParam = "{\"ORDER\": \"LIFO\",\"ATTEMPT\": 2}";
         bridgeContext = BridgeContext
                 .custom(GROUP_TAG, META_TAG, connectionData)
-                .withBridgeProcessing((connection, processData) -> {
-                    if (processData.getRawId()%2 == 0)
+                .withBridgeAfterProcessing((connection, processData) -> {
+                    if (processData.getRawId() % 2 == 0)
                         throw new RuntimeException(TEST_EXCEPTION_TEXT);
                 })
-                .withParam("{\"ORDER\": \"LIFO\",\"ATTEMPT\": -1}")
+                .withSchemaName(SCHEMA_NAME)
+                .withDataBaseType(DataBaseType.POSTGRESQL)
+                .build();
+
+        Map<String, Object> param = new HashMap<>();
+        param.put(ParamEnum.ATTEMPT.name(), 2);
+        bridgeContextAttempt = BridgeContext
+                .custom(GROUP_TAG, META_TAG, connectionData)
+                .withBridgeAfterProcessing((connection, processData) -> {
+                    throw new RuntimeException(TEST_EXCEPTION_TEXT);
+                })
+                .withParam(param)
                 .withSchemaName(SCHEMA_NAME)
                 .withDataBaseType(DataBaseType.POSTGRESQL)
                 .build();
@@ -57,7 +71,7 @@ public class PostgresContainerUnit extends ContainerUnit {
     @Override
     public String findTestProcedure(String typeTag) {
         switch (typeTag) {
-            case "EXCEPTION" :
+            case "EXCEPTION":
                 return "begin EXECUTE format(\n" +
                         "                $string$ create or replace procedure %s(a_raw_id bigint, a_buf_id bigint)\n" +
                         "                   language plpgsql\n" +
@@ -71,7 +85,7 @@ public class PostgresContainerUnit extends ContainerUnit {
                         "$f1$;\n" +
                         "                   $string$, '" + bridgeContext.getMetaData().getPrcExecFullName() + "', lower('" + bridgeContext.getMetaData().getPrcExecName() + "')); end;";
 
-            case "EXCEPTION2" :
+            case "EXCEPTION2":
                 return "begin EXECUTE format(\n" +
                         "                $string$ create or replace procedure %s(a_raw_id bigint, a_buf_id bigint)\n" +
                         "                   language plpgsql\n" +
@@ -85,7 +99,7 @@ public class PostgresContainerUnit extends ContainerUnit {
                         "$f1$;\n" +
                         "                   $string$, '" + bridgeContext.getMetaData().getPrcExecFullName() + "', lower('" + bridgeContext.getMetaData().getPrcExecName() + "')); end;";
 
-            case "EXCEPTION3" :
+            case "EXCEPTION3":
                 return "begin EXECUTE format(\n" +
                         "                $string$ create or replace procedure %s(a_raw_id bigint, a_buf_id bigint)\n" +
                         "                   language plpgsql\n" +
@@ -99,7 +113,8 @@ public class PostgresContainerUnit extends ContainerUnit {
                         "$f1$;\n" +
                         "                   $string$, '" + bridgeContext.getMetaData().getPrcExecFullName() + "', lower('" + bridgeContext.getMetaData().getPrcExecName() + "')); end;";
 
-            default : throw new RuntimeException("typeTag not found {" + typeTag + "}");
+            default:
+                throw new RuntimeException("typeTag not found {" + typeTag + "}");
         }
     }
 

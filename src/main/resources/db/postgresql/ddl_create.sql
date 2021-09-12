@@ -98,7 +98,8 @@ $$;
 
 ++
 
-create procedure ${schemaName}.prc_create_meta_by_tag(a_group_tag text, a_meta_tag text, a_schema_name text default null, a_param text default null)
+create procedure ${schemaName}.prc_create_meta_by_tag(a_group_tag text, a_meta_tag text,
+                                                      a_schema_name text default null, a_param text default null)
     language plpgsql
 as
 $$
@@ -322,7 +323,6 @@ begin
             using l_raw_id,l_raw_f_id,l_raw_f_payload, l_raw_f_date into l_update_count, l_buf_id;
 
         if l_update_count > 0 then
-            execute 'call ' || a_prc_exec_full_name || '($1,$2)' using l_raw_id,l_buf_id;
             a_buf_id := l_buf_id;
             l_raw_s_status := 1; -- Success
         else
@@ -347,6 +347,27 @@ $$;
 
 ++
 
+create procedure ${schemaName}.prc_process(IN a_raw_id bigint, IN a_buf_id bigint,
+                                           IN a_prc_exec_full_name text,
+                                           INOUT a_processed_status integer,
+                                           INOUT a_error_message text)
+    language plpgsql
+as
+$$
+begin
+    execute 'call ' || a_prc_exec_full_name || '($1,$2)' using a_raw_id,a_buf_id;
+exception
+    when others then
+        if sqlstate = '20993' then
+            a_processed_status := 3; -- unrepeatable status
+        else
+            a_processed_status := -3; -- processing happened with error
+        end if;
+        a_error_message := sqlerrm;
+end;
+$$
+    ++
+
 create procedure ${schemaName}.prc_post_process(IN a_raw_id bigint, IN a_raw_full_name text,
                                                 IN a_processed_status integer,
                                                 IN a_error_message text, a_msg IN text default NULL)
@@ -367,7 +388,7 @@ $$;
 ++
 
 create procedure ${schemaName}.prc_start_task(a_group_tag text, a_meta_tag text, a_raw_id bigint DEFAULT NULL::bigint,
-                                              a_msg IN text default NULL)
+                                              a_msg IN text default NULL, a_param IN text default null)
     language plpgsql
 as
 $$
@@ -389,17 +410,21 @@ begin
            buf_full_name,
            prc_exec_full_name,
            case
-               when param::JSONB ->> 'ORDER' = 'FIFO' then 'select id,s_counter from ' || raw_full_name ||
+               when param ->> 'ORDER' = 'FIFO' then 'select id,s_counter from ' || raw_full_name ||
                                                     ' where s_action=0 order by s_date asc, id asc'
-               when param::JSONB ->> 'ORDER' = 'LIFO' or param::JSONB ->> 'ORDER' is null THEN
+               when param ->> 'ORDER' = 'LIFO' or param::JSONB ->> 'ORDER' is null THEN
                            'select id,s_counter from ' || raw_full_name ||
                            ' where s_action=0 order by s_date desc, id desc'
                end,
-           coalesce((param::JSONB ->> 'ATTEMPT')::INTEGER, -1)
+           coalesce((param ->> 'ATTEMPT')::INTEGER, -1)
     into l_raw_full_name,l_buf_full_name,l_prc_exec_full_name, l_raw_loop_query, l_attempt
-    from ${schemaName}.BRIDGE_META_V
-    where GROUP_tag = a_group_tag
-      and META_TAG = a_meta_tag;
+    from (select raw_full_name,
+                 buf_full_name,
+                 prc_exec_full_name,
+                 COALESCE(a_param::JSONB, param::JSONB) param
+          from ${schemaName}.BRIDGE_META_V
+          where GROUP_tag = a_group_tag
+            and META_TAG = a_meta_tag) tt;
 
     if not a_raw_id is null then
         l_raw_loop_query := 'select id,s_counter from ' || l_raw_full_name || ' where s_action=0 and id=$1';
@@ -414,8 +439,19 @@ begin
             call ${schemaName}.prc_pre_process(c_raw_rec.id, l_raw_full_name, l_buf_full_name,
                                                l_prc_exec_full_name, l_processed_status, l_error_message, l_buf_id);
 
-           if l_attempt <> -1 and c_raw_rec.s_counter + 1 >= l_attempt and l_processed_status = -3 then
+            if l_processed_status = 1 then
+                call ${schemaName}.prc_process(c_raw_rec.id, l_buf_id, l_prc_exec_full_name, l_processed_status,
+                                               l_error_message);
+            end if;
+
+
+
+            if l_attempt <> -1 and c_raw_rec.s_counter + 1 >= l_attempt and l_processed_status = -3 then
                 l_processed_status := 3;
+            end if;
+
+            if l_processed_status <> 1 then
+                rollback;
             end if;
 
             call ${schemaName}.prc_post_process(c_raw_rec.id, l_raw_full_name, l_processed_status, l_error_message,

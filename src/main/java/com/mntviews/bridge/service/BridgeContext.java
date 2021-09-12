@@ -17,7 +17,10 @@ import com.mntviews.bridge.service.impl.BridgeServiceImpl;
 import lombok.Getter;
 
 import java.sql.Connection;
+import java.util.Arrays;
+import java.util.Map;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 public class BridgeContext {
 
@@ -27,11 +30,12 @@ public class BridgeContext {
     private final String groupTag;
     private final String metaTag;
     private final ConnectionData connectionData;
-    private final BridgeProcessing bridgeProcessing;
+    private final BridgeProcessing bridgeBeforeProcessing;
+    private final BridgeProcessing bridgeAfterProcessing;
     private final BridgeService bridgeService;
     private final String schemaName;
     private final DataBaseType dataBaseType;
-    private final String param;
+    private final Map<String, Object> param;
 
     @Getter
     private MetaData metaData;
@@ -40,7 +44,8 @@ public class BridgeContext {
         this.groupTag = builder.groupTag;
         this.metaTag = builder.metaTag;
 
-        this.bridgeProcessing = builder.bridgeProcessing;
+        this.bridgeBeforeProcessing = builder.bridgeBeforeProcessing;
+        this.bridgeAfterProcessing = builder.bridgeAfterProcessing;
 
         if (builder.dataBaseType == null)
             this.dataBaseType = DEFAULT_DATABASE_TYPE;
@@ -61,7 +66,14 @@ public class BridgeContext {
         this.connectionData = new ConnectionData(builder.connectionData.getUrl(), builder.connectionData.getUserName()
                 , builder.connectionData.getPassword(), Objects.requireNonNullElse(builder.connectionData.getSchemaName()
                 , this.schemaName));
-        this.param = builder.param;
+
+        if (builder.param != null) {
+            // complete param list with default params
+            Map<String, Object> fullParam = Arrays.stream(DefaultParam.values()).collect(Collectors.toMap(DefaultParam::toString, DefaultParam::getValue));
+            fullParam.putAll(builder.param);
+            this.param = fullParam;
+        } else
+            this.param = null;
     }
 
     private void checkMetaData() {
@@ -75,7 +87,7 @@ public class BridgeContext {
 
     public void execute(Long rawId) {
         checkMetaData();
-        bridgeService.execute(metaData, this.dataBaseType.getConnection(connectionData), bridgeProcessing, connectionData.getSchemaName(), rawId);
+        bridgeService.execute(metaData, this.dataBaseType.getConnection(connectionData), bridgeBeforeProcessing, bridgeAfterProcessing, connectionData.getSchemaName(), rawId, param);
     }
 
     public Connection getConnectionData() {
@@ -135,12 +147,14 @@ public class BridgeContext {
         private final String groupTag;
         private final String metaTag;
         private final ConnectionData connectionData;
-        private BridgeProcessing bridgeProcessing;
+        private BridgeProcessing bridgeBeforeProcessing;
+        private BridgeProcessing bridgeAfterProcessing;
+
         private String schemaName;
         private BridgeService bridgeService;
         private DataBaseInitService dataBaseInitService;
         private DataBaseType dataBaseType;
-        private String param;
+        private Map<String, Object> param;
 
         public Builder(String groupTag, String metaTag, ConnectionData connectionData) {
             this.groupTag = groupTag;
@@ -148,11 +162,15 @@ public class BridgeContext {
             this.connectionData = connectionData;
         }
 
-        public Builder withBridgeProcessing(BridgeProcessing bridgeProcessing) {
-            this.bridgeProcessing = bridgeProcessing;
+        public Builder withBridgeBeforeProcessing(BridgeProcessing bridgeBeforeProcessing) {
+            this.bridgeBeforeProcessing = bridgeBeforeProcessing;
             return this;
         }
 
+        public Builder withBridgeAfterProcessing(BridgeProcessing bridgeAfterProcessing) {
+            this.bridgeAfterProcessing = bridgeAfterProcessing;
+            return this;
+        }
 
         public Builder withBridgeService(BridgeService bridgeService) {
             this.bridgeService = bridgeService;
@@ -172,7 +190,7 @@ public class BridgeContext {
         }
 
 
-        public Builder withParam(String param) {
+        public Builder withParam(Map<String, Object> param) {
             this.param = param;
             return this;
         }

@@ -3,10 +3,13 @@ package com.mntviews.bridge.common;
 import com.mntviews.bridge.model.ConnectionData;
 import com.mntviews.bridge.service.BridgeContext;
 import com.mntviews.bridge.service.DataBaseType;
+import com.mntviews.bridge.service.ParamEnum;
 import oracle.jdbc.pool.OracleConnectionPoolDataSource;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.sql.SQLException;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Properties;
 
 
@@ -28,11 +31,22 @@ public class OracleContainerUnit extends ContainerUnit {
         attemptTestParam = "<PARAM><ORDER>LIFO</ORDER><ATTEMPT>2</ATTEMPT></PARAM>";
         bridgeContext = BridgeContext
                 .custom(GROUP_TAG, META_TAG, connectionData)
-                .withBridgeProcessing((connection, processData) -> {
-                    if (processData.getRawId()%2== 0)
+                .withBridgeAfterProcessing((connection, processData) -> {
+                    if (processData.getRawId() % 2 == 0)
                         throw new RuntimeException(TEST_EXCEPTION_TEXT);
                 })
-                .withParam("<PARAM><ORDER>LIFO</ORDER><ATTEMPT>-1</ATTEMPT></PARAM>")
+                .withSchemaName(SCHEMA_NAME)
+                .withDataBaseType(DataBaseType.ORACLE)
+                .build();
+
+        Map<String, Object> param = new HashMap<>();
+        param.put(ParamEnum.ATTEMPT.name(), 2);
+        bridgeContextAttempt = BridgeContext
+                .custom(GROUP_TAG, META_TAG, connectionData)
+                .withBridgeAfterProcessing((connection, processData) -> {
+                    throw new RuntimeException(TEST_EXCEPTION_TEXT);
+                })
+                .withParam(param)
                 .withSchemaName(SCHEMA_NAME)
                 .withDataBaseType(DataBaseType.ORACLE)
                 .build();
@@ -58,7 +72,7 @@ public class OracleContainerUnit extends ContainerUnit {
     @Override
     public String findTestProcedure(String typeTag) {
         switch (typeTag) {
-            case "EXCEPTION" :
+            case "EXCEPTION":
                 return "begin EXECUTE IMMEDIATE\n" +
                         "                'create or replace procedure " + bridgeContext.getMetaData().getPrcExecFullName() + "(a_raw_id number, a_buf_id number)\n" +
                         "                as\n" +
@@ -69,7 +83,7 @@ public class OracleContainerUnit extends ContainerUnit {
                         "                l_sqlerrm:=sqlerrm;\n" +
                         "            raise_application_error(-20001, ''' || lower('" + bridgeContext.getMetaData().getPrcExecName() + "') || ' error : '' || l_sqlerrm || '' {buf.id='' || a_buf_id || ''}'');\n" +
                         "    end;'; end;";
-            case "EXCEPTION2" :
+            case "EXCEPTION2":
                 return "begin EXECUTE IMMEDIATE\n" +
                         "                'create or replace procedure " + bridgeContext.getMetaData().getPrcExecFullName() + "(a_raw_id number, a_buf_id number)\n" +
                         "                as\n" +
@@ -81,7 +95,7 @@ public class OracleContainerUnit extends ContainerUnit {
                         "            raise_application_error(-20001, ''' || lower('" + bridgeContext.getMetaData().getPrcExecName() + "') || ' error : '' || l_sqlerrm || '' {buf.id='' || a_buf_id || ''}'');\n" +
                         "    end;'; end;";
 
-            case "EXCEPTION3" :
+            case "EXCEPTION3":
                 return "begin EXECUTE IMMEDIATE\n" +
                         "                'create or replace procedure " + bridgeContext.getMetaData().getPrcExecFullName() + "(a_raw_id number, a_buf_id number)\n" +
                         "                as\n" +
@@ -92,7 +106,8 @@ public class OracleContainerUnit extends ContainerUnit {
                         "                l_sqlerrm:=sqlerrm;\n" +
                         "            raise_application_error(SQLCODE, ''' || lower('" + bridgeContext.getMetaData().getPrcExecName() + "') || ' error : '' || l_sqlerrm || '' {buf.id='' || a_buf_id || ''}'');\n" +
                         "    end;'; end;";
-            default : throw new RuntimeException("typeTag not found {" + typeTag + "}");
+            default:
+                throw new RuntimeException("typeTag not found {" + typeTag + "}");
         }
     }
 

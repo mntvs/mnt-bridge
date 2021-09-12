@@ -21,7 +21,7 @@ abstract public class DataBaseInit implements DataBaseInitService {
     protected final MetaInitRepo metaInitRepo;
     protected final MetaDataRepo metaDataRepo;
 
-    public MetaData init(ConnectionData connectionData, String groupTag, String metaTag, String schemaName, String param) {
+    protected MetaData init(ConnectionData connectionData, String groupTag, String metaTag, String schemaName, String param) {
         if (metaInitRepo != null) {
             try (Connection connection = metaInitRepo.getConnection(connectionData)) {
                 MetaData metaData = metaDataRepo.findMetaData(connection, groupTag, metaTag, connectionData.getSchemaName());

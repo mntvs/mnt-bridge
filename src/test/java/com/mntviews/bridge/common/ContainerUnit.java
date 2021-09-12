@@ -38,6 +38,8 @@ public abstract class ContainerUnit {
 
     @Getter
     protected BridgeContext bridgeContext;
+    @Getter
+    protected BridgeContext bridgeContextAttempt;
 
     public String wrapCodeBlock(String codeBlock) { return codeBlock; }
 

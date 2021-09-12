@@ -9,6 +9,7 @@ import com.mntviews.bridge.service.impl.DataBaseInitPostgresqlServiceImpl;
 import com.mntviews.bridge.service.impl.DataBaseInitTestServiceImpl;
 
 import java.sql.Connection;
+import java.util.Map;
 
 public enum DataBaseType implements DataBaseInitService {
     POSTGRESQL(new DataBaseInitPostgresqlServiceImpl(new MetaInitPostgresqlRepoImpl()))
@@ -32,7 +33,7 @@ public enum DataBaseType implements DataBaseInitService {
     }
 
     @Override
-    public MetaData init(ConnectionData connectionData, String groupTag, String metaTag, String schemaName, String param) {
+    public MetaData init(ConnectionData connectionData, String groupTag, String metaTag, String schemaName, Map<String, Object> param) {
         return dataBaseInitService.init(connectionData, groupTag, metaTag, schemaName, param);
     }
 

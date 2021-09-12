@@ -5,14 +5,9 @@ import com.mntviews.bridge.model.MetaData;
 import com.mntviews.bridge.repository.MetaDataRepo;
 import com.mntviews.bridge.repository.MetaInitRepo;
 import com.mntviews.bridge.repository.impl.MetaDataRepoImpl;
-import com.mntviews.bridge.service.DataBaseInitService;
-import com.mntviews.bridge.service.ScriptRunner;
-import com.mntviews.bridge.service.exception.DataBaseInitServiceException;
-import lombok.RequiredArgsConstructor;
+import com.mntviews.bridge.service.ParamTypeEnum;
 
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.sql.Connection;
+import java.util.Map;
 
 
 public class DataBaseInitPostgresqlServiceImpl extends DataBaseInit {
@@ -33,5 +28,9 @@ public class DataBaseInitPostgresqlServiceImpl extends DataBaseInit {
     @Override
     public void migrate(ConnectionData connectionData, Boolean isClean) {
         migrate(connectionData, isClean, DDL_CREATE_PATH, DDL_DROP_PATH);
+    }
+    @Override
+    public MetaData init(ConnectionData connectionData, String groupTag, String metaTag, String schemaName, Map<String, Object> param) {
+        return init(connectionData, groupTag, metaTag, schemaName, ParamTypeEnum.JSON.toString(param));
     }
 }
