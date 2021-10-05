@@ -2,6 +2,7 @@ package com.mntviews.bridge.repository.impl;
 
 import com.mntviews.bridge.model.BufData;
 import com.mntviews.bridge.repository.BufRepo;
+import com.mntviews.bridge.repository.exception.BufRepoException;
 import com.mntviews.bridge.repository.exception.RawRepoException;
 
 import java.sql.Connection;
@@ -37,10 +38,10 @@ public class BufRepoImpl implements BufRepo {
                 }
 
             } catch (Exception e) {
-                throw new RawRepoException(e);
+                throw new BufRepoException(e);
             }
         } catch (Exception e) {
-            throw new RawRepoException(e);
+            throw new BufRepoException(e);
         }
         return null;
     }
@@ -48,5 +49,23 @@ public class BufRepoImpl implements BufRepo {
     @Override
     public BufData findBufDataByRawId(Connection connection, String bufFullName, Long id) {
         return findBufDataBy(connection, bufFullName, id, "f_raw_id");
+    }
+
+    @Override
+    public BufData saveBufData(Connection connection, String bufFullName, BufData bufData) {
+        try (PreparedStatement stmt = connection
+                .prepareStatement("UPDATE " + bufFullName + " SET s_payload=? WHERE id=?")) {
+            stmt.setString(1, bufData.getSPayload());
+            stmt.setLong(2, bufData.getId());
+            int count = stmt.executeUpdate();
+
+            if (count == 0) {
+                throw new BufRepoException("0 rows affected");
+            }
+        } catch (Exception e) {
+            throw new BufRepoException(e);
+        }
+
+        return bufData;
     }
 }

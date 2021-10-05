@@ -73,8 +73,8 @@ FROM (SELECT tt1.group_tag,
                    'FBI_BUF_' || bm.tag  AS       buf_name,
                    'PRC_EXEC_' || bm.tag AS       prc_exec_name,
                    UPPER(NVL(bm.param, bg.param)) param
-            FROM mnt_bridge.bridge_meta bm
-                     JOIN mnt_bridge.bridge_group bg ON bg.id = bm.group_id) tt1) tt2;
+            FROM ${schemaName}.bridge_meta bm
+                     JOIN ${schemaName}.bridge_group bg ON bg.id = bm.group_id) tt1) tt2;
 
 comment on table ${schemaName}.bridge_meta_v is 'Meta data view ${versionStr}';
 
@@ -127,7 +127,7 @@ as
     l_prc_exec_full_name VARCHAR2(100);
     l_prc_exec_name      VARCHAR2(100);
     l_name               VARCHAR2(100);
-    l_schema_name        mnt_bridge.bridge_group.schema_name%TYPE;
+    l_schema_name        ${schemaName}.bridge_group.schema_name%TYPE;
     l_group_id           NUMBER(19);
     l_meta_id            NUMBER(19);
     l_is_user_exists     NUMBER;
@@ -488,7 +488,6 @@ create or replace procedure ${schemaName}.prc_pre_process(a_raw_id IN NUMBER, a_
                                                           a_error_message IN OUT VARCHAR2,
                                                           a_buf_id OUT NUMBER)
 as
-    l_buf_id        NUMBER(19);
     l_raw_id        NUMBER(19);
     l_raw_f_id      VARCHAR2(2000);
     l_raw_f_payload CLOB;
@@ -510,7 +509,7 @@ begin
         l_raw_id,l_raw_f_id,l_raw_f_payload, l_raw_f_date, l_raw_f_date,l_raw_f_date, l_raw_id;
 
     if SQL%ROWCOUNT > 0 then
-        a_buf_id := l_buf_id;
+        execute immediate 'select id from ' || a_buf_full_name || ' where f_id=:1' into a_buf_id using l_raw_f_id;
         l_raw_s_status := 1; -- Success
     else
         l_raw_s_status := 5; -- Skiped

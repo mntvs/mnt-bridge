@@ -17,6 +17,9 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static java.sql.JDBCType.INTEGER;
+import static java.sql.JDBCType.VARCHAR;
+
 @RequiredArgsConstructor
 public class RawLoopRepoImpl implements RawLoopRepo {
 
@@ -27,7 +30,7 @@ public class RawLoopRepoImpl implements RawLoopRepo {
      *
      * @param connection       opened connection with db
      * @param metaData         system data received from db
-     * @param bridgeProcessing outer procedure to process current raw
+     * @param bridgeBeforeProcessing outer procedure to process current raw before db process
      * @param schemaName       schema name for system system objects
      * @param rawId
      * @param param
@@ -35,8 +38,7 @@ public class RawLoopRepoImpl implements RawLoopRepo {
     @Override
     public void rawLoop(Connection connection, MetaData metaData, BridgeProcessing bridgeBeforeProcessing, BridgeProcessing bridgeAfterProcessing, String schemaName, Long rawId, Map<String, Object> param) {
         AtomicInteger count = new AtomicInteger();
-        Map<String, Object> localParam = new HashMap<>();
-        localParam.putAll(metaData.getParam());
+        Map<String, Object> localParam = new HashMap<>(metaData.getParam());
         if (param != null)
             localParam.putAll(param);
         String rawLoopQuery;
@@ -87,8 +89,7 @@ public class RawLoopRepoImpl implements RawLoopRepo {
                     processData.setErrorMessage(errorMessage);
                     preProcess(connection, processData, schemaName);
 
-
-                    if (processData.getProcessedStatus() == 1) {
+                    if (processData.getProcessedStatus() == BridgeUtil.STATUS_SUCCESS) {
                         try {
                             if (bridgeBeforeProcessing != null)
                                 bridgeBeforeProcessing.process(connection, processData);
@@ -101,10 +102,10 @@ public class RawLoopRepoImpl implements RawLoopRepo {
 
                         }
                     }
-                    if (processData.getProcessedStatus() == 1)
+                    if (processData.getProcessedStatus() == BridgeUtil.STATUS_SUCCESS)
                         process(connection, processData, schemaName);
 
-                    if (processData.getProcessedStatus() == 1) {
+                    if (processData.getProcessedStatus() == BridgeUtil.STATUS_SUCCESS) {
                         try {
                             if (bridgeAfterProcessing != null)
                                 bridgeAfterProcessing.process(connection, processData);
@@ -186,8 +187,12 @@ public class RawLoopRepoImpl implements RawLoopRepo {
             prcProcess.setString(3, processData.getMetaData().getPrcExecFullName());
             prcProcess.setInt(4, processData.getProcessedStatus());
             prcProcess.setString(5, processData.getErrorMessage());
+            prcProcess.registerOutParameter(4,Types.INTEGER);
+            prcProcess.registerOutParameter(5,Types.VARCHAR);
 
             prcProcess.execute();
+            processData.setProcessedStatus(prcProcess.getInt(4));
+            processData.setErrorMessage(prcProcess.getString(5));
         } catch (Exception e) {
             throw new PostProcessRepoException(e);
         }

@@ -26,6 +26,6 @@ public interface BridgeService {
 
     void deleteRawDataById(Connection connection, MetaData metaData, Long id);
 
-    BufData saveBufDataById(Connection connection, MetaData metaData, BufData bufData);
+    BufData saveBufData(Connection connection, MetaData metaData, BufData bufData);
 
 }

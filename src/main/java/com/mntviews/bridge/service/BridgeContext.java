@@ -106,6 +106,12 @@ public class BridgeContext {
         return bridgeService.saveRawData(connection, metaData, rawData);
     }
 
+    public BufData saveBufData(BufData bufData, Connection connection) {
+        checkMetaData();
+        return bridgeService.saveBufData(connection, metaData, bufData);
+    }
+
+
     public BufData findBufDataById(Long id, Connection connection) {
         checkMetaData();
         return bridgeService.findBufDataById(connection, metaData, id);

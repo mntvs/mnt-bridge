@@ -63,8 +63,8 @@ public class BridgeServiceImpl implements BridgeService {
     }
 
     @Override
-    public BufData saveBufDataById(Connection connection, MetaData metaData, BufData bufData) {
-        return null;
+    public BufData saveBufData(Connection connection, MetaData metaData, BufData bufData) {
+        return bufRepo.saveBufData(connection, metaData.getBufFullName(), bufData);
     }
 
 
