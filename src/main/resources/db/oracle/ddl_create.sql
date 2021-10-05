@@ -358,8 +358,6 @@ begin
                 begin
                 /* Generated ' || l_time_created || ' ${versionStr} */
                 null;
-        exception when others then
-            raise_application_error(SQLCODE, ''' || lower(l_prc_exec_name) || ' error : '' || sqlerrm || '' {buf.id='' || a_buf_id || ''}'');
     end;';
     end if;
 
