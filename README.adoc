@@ -3,11 +3,12 @@
 == Motivation
 
 .If you need
-* Simple task processing and asynchronous job execution. (not high load. less than 1000rps)
-
-* Worked with database which is used by project already and don't demand addition tools like kafka of activeMq
-* can be automatically installed and updated
-* embedded error's logging saved in database to simplify support and problems solving
+* Simple task processing and asynchronous job execution. (not high load. less than 1000rps).
+* Worked with database which is used by project already and don't demand addition tools like kafka of activeMq.
+* can be automatically installed and updated.
+* embedded error's logging saved in database to simplify support and problems solving.
+* strong guaranties for task processing.
+* multi thread processing for one queue.
 
 .area of use:
 * automatic report generation
