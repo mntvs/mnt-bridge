@@ -1,0 +1,3 @@
+.Yandex Database Queue
+
+https://github.com/yoomoney/db-queue
