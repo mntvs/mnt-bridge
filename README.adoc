@@ -1,15 +1,17 @@
 = Simple queue implementation based on java and database
 
 == Motivation
+
 .If you need
 * Simple task processing and asynchronous job execution. (not high load. less than 1000rps)
+
 * Worked with database which is used by project already and don't demand addition tools like kafka of activeMq
 * can be automatically installed and updated
 * embedded error's logging saved in database to simplify support and problems solving
 
 .area of use:
-
 * automatic report generation
+
 * sending mail periodically
 * sites scraping
 * bridges between systems
@@ -18,6 +20,29 @@
 
 and so on
 
+****
+Currently supports PostgreSQL and Oracle databases.
+****
 
 == Examples
 
+.Creates context for simple queue with standard parameters for PostgreSQL. Initialize database objects and executes queue processing.
+[source,java]
+----
+
+      BridgeContext bridgeContext = BridgeContext
+                .custom("GROUP_TAG", "META_TAG", new ConnectionData("DB_URL", "USER_NAME","USER_PASSWORD"))
+                .withBridgeBeforeProcessing((connection, processData) -> {
+                     // Action which executed before processing in database
+                })
+                .withBridgeAfterProcessing((connection, processData) -> {
+                    // Action which executed after processing in database
+                })
+                .withSchemaName("SCHEMA_NAME")
+                .withDataBaseType(DataBaseType.POSTGRESQL)
+                .build();
+
+        bridgeContext.migrate() // creates db objects to provide common functionality to process queue
+        bridgeContext.init(); // initialization of queue objects
+        bridgeContext.execute(); // process queue
+----
