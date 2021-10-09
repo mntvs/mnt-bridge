@@ -158,7 +158,6 @@ public class BridgeContext {
 
         private String schemaName;
         private BridgeService bridgeService;
-        private DataBaseInitService dataBaseInitService;
         private DataBaseType dataBaseType;
         private Map<String, Object> param;
 

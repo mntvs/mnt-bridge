@@ -1,7 +1,6 @@
 package com.mntviews.bridge.repository;
 
 import com.mntviews.bridge.model.BufData;
-import com.mntviews.bridge.model.RawData;
 
 import java.sql.Connection;
 

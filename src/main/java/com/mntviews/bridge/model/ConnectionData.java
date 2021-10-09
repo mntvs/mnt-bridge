@@ -1,6 +1,5 @@
 package com.mntviews.bridge.model;
 
-import com.mntviews.bridge.service.BridgeContext;
 import lombok.Data;
 
 @Data

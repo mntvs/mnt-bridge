@@ -2,13 +2,12 @@ package com.mntviews.bridge.repository.impl;
 
 import com.mntviews.bridge.repository.MetaInitRepo;
 import com.mntviews.bridge.repository.exception.MetaInitException;
-import com.mntviews.bridge.service.BridgeContext;
 
 import java.sql.CallableStatement;
 import java.sql.Connection;
 import java.sql.SQLException;
 
-abstract public class MetaInit implements MetaInitRepo {
+public abstract class MetaInit implements MetaInitRepo {
 
     @Override
     public void init(Connection connection, String groupTag, String metaTag, String schemaName, String schemaMetaName, String param) {

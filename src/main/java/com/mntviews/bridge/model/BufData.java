@@ -3,7 +3,6 @@ package com.mntviews.bridge.model;
 import lombok.Data;
 
 import java.time.OffsetDateTime;
-import java.util.Date;
 
 @Data
 public class BufData {

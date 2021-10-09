@@ -12,8 +12,8 @@ import java.util.Map;
 
 public class DataBaseInitOracleServiceImpl  extends DataBaseInit {
 
-    private final static String DDL_CREATE_PATH = "db/oracle/ddl_create.sql";
-    private final static String DDL_DROP_PATH = "db/oracle/ddl_drop.sql";
+    private static final String DDL_CREATE_PATH = "db/oracle/ddl_create.sql";
+    private static final String DDL_DROP_PATH = "db/oracle/ddl_drop.sql";
 
     public DataBaseInitOracleServiceImpl(MetaInitRepo metaInitRepo, MetaDataRepo metaDataRepo) {
         super(metaInitRepo, metaDataRepo);

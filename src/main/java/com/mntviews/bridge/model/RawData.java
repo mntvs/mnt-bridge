@@ -2,8 +2,6 @@ package com.mntviews.bridge.model;
 
 import lombok.Data;
 
-import java.math.BigDecimal;
-import java.math.BigInteger;
 import java.time.OffsetDateTime;
 
 @Data

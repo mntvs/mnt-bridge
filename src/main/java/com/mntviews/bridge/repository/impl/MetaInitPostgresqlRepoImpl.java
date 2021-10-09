@@ -1,12 +1,11 @@
 package com.mntviews.bridge.repository.impl;
 
 import com.mntviews.bridge.model.ConnectionData;
-import com.mntviews.bridge.repository.MetaInitRepo;
-import com.mntviews.bridge.repository.exception.MetaInitException;
-import com.mntviews.bridge.service.BridgeContext;
 import com.mntviews.bridge.service.exception.BridgeServiceException;
 
-import java.sql.*;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.SQLException;
 import java.util.Properties;
 
 public class MetaInitPostgresqlRepoImpl extends MetaInit {

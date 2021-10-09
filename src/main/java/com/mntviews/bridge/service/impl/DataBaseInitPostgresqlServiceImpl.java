@@ -9,16 +9,14 @@ import com.mntviews.bridge.service.ParamTypeEnum;
 
 import java.util.Map;
 
-
 public class DataBaseInitPostgresqlServiceImpl extends DataBaseInit {
 
-    private final static String DDL_CREATE_PATH = "db/postgresql/ddl_create.sql";
-    private final static String DDL_DROP_PATH = "db/postgresql/ddl_drop.sql";
+    private static final String DDL_CREATE_PATH = "db/postgresql/ddl_create.sql";
+    private static final String DDL_DROP_PATH = "db/postgresql/ddl_drop.sql";
 
     public DataBaseInitPostgresqlServiceImpl(MetaInitRepo metaInitRepo, MetaDataRepo metaDataRepo) {
         super(metaInitRepo, metaDataRepo);
     }
-
 
     public DataBaseInitPostgresqlServiceImpl(MetaInitRepo metaInitRepo) {
         super(metaInitRepo, new MetaDataRepoImpl());

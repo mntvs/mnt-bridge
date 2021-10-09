@@ -2,7 +2,7 @@ package com.mntviews.bridge.repository.exception;
 
 public class UnrepeatableStatusException extends RuntimeException {
 
-    String code = "20993";
+    static final String CODE = "20993";
 
     public UnrepeatableStatusException() {
     }

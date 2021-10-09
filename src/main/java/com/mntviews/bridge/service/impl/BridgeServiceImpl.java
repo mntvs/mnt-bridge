@@ -54,12 +54,12 @@ public class BridgeServiceImpl implements BridgeService {
 
     @Override
     public void deleteRawData(Connection connection, MetaData metaData, RawData rawData) {
-
+        // Implementation will be soon
     }
 
     @Override
     public void deleteRawDataById(Connection connection, MetaData metaData, Long id) {
-
+        // Implementation will be soon
     }
 
     @Override

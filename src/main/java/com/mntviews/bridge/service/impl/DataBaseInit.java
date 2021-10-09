@@ -17,7 +17,7 @@ import java.sql.SQLException;
 
 
 @RequiredArgsConstructor
-abstract public class DataBaseInit implements DataBaseInitService {
+public abstract class DataBaseInit implements DataBaseInitService {
     protected final MetaInitRepo metaInitRepo;
     protected final MetaDataRepo metaDataRepo;
 
@@ -29,11 +29,9 @@ abstract public class DataBaseInit implements DataBaseInitService {
                     metaInitRepo.init(connection, groupTag, metaTag, schemaName, connectionData.getSchemaName(), param);
                     metaData = metaDataRepo.findMetaData(connection, groupTag, metaTag, connectionData.getSchemaName());
                 }
-                try {
-                    connection.commit();
-                } catch (SQLException e) {
-                    throw new DataBaseInitServiceException(e);
-                }
+
+                connection.commit();
+
                 return metaData;
             } catch (SQLException e) {
                 throw new DataBaseInitServiceException(e);
@@ -44,20 +42,18 @@ abstract public class DataBaseInit implements DataBaseInitService {
         return null;
     }
 
-    protected void migrate(ConnectionData connectionData, Boolean isClean, String ddlCreatePath, String ddlDropPath) {
+    protected void migrate(ConnectionData connectionData, boolean isClean, String ddlCreatePath, String ddlDropPath) {
         try (Connection connection = metaInitRepo.getConnection(connectionData)) {
             ScriptRunner scriptRunner = new ScriptRunner(connection, false, false);
-            try {
-                if (isClean) {
-                    executeScript(connectionData, ddlDropPath, scriptRunner);
-                    connection.commit();
 
-                }
-                executeScript(connectionData, ddlCreatePath, scriptRunner);
+            if (isClean) {
+                executeScript(connectionData, ddlDropPath, scriptRunner);
                 connection.commit();
-            } catch (Exception e) {
-                throw new DataBaseInitServiceException(e);
+
             }
+            executeScript(connectionData, ddlCreatePath, scriptRunner);
+            connection.commit();
+
         } catch (SQLException e) {
             throw new DataBaseInitServiceException(e);
         }
@@ -69,7 +65,7 @@ abstract public class DataBaseInit implements DataBaseInitService {
         if (inputStream == null)
             throw new DataBaseInitServiceException(ddlCreatePath + " not found.");
         try {
-            String versionStr = BridgeUtil.BUILD_INFO.getProperty("name") + " ver. " + BridgeUtil.BUILD_INFO.getProperty("version");
+            String versionStr = BridgeUtil.getProperties().getProperty("name") + " ver. " + BridgeUtil.getProperties().getProperty("version");
             scriptRunner.runScript(new InputStreamReader(inputStream), connectionData.getSchemaName(), versionStr);
         } catch (Exception e) {
             throw new DataBaseInitServiceException(e);
@@ -86,9 +82,7 @@ abstract public class DataBaseInit implements DataBaseInitService {
     public void clear(ConnectionData connectionData, String groupTag, String metaTag) {
 
         try (Connection connection = metaInitRepo.getConnection(connectionData)) {
-            if (metaInitRepo != null) {
                 metaInitRepo.clear(connection, groupTag, metaTag, connectionData.getSchemaName());
-            }
         } catch (SQLException e) {
             throw new DataBaseInitServiceException(e);
         }
