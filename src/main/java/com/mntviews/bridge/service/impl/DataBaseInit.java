@@ -65,7 +65,7 @@ public abstract class DataBaseInit implements DataBaseInitService {
         if (inputStream == null)
             throw new DataBaseInitServiceException(ddlCreatePath + " not found.");
         try {
-            String versionStr = BridgeUtil.getProperties().getProperty("name") + " ver. " + BridgeUtil.getProperties().getProperty("version");
+            String versionStr = BridgeUtil.getBuildInfo().getProperty("name") + " ver. " + BridgeUtil.getBuildInfo().getProperty("version");
             scriptRunner.runScript(new InputStreamReader(inputStream), connectionData.getSchemaName(), versionStr);
         } catch (Exception e) {
             throw new DataBaseInitServiceException(e);

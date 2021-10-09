@@ -34,7 +34,7 @@ public class BridgeUtil {
         }
     }
 
-    public static Properties getProperties() {
+    public static Properties getBuildInfo() {
         return BUILD_INFO;
     }
 
