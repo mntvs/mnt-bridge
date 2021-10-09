@@ -18,22 +18,6 @@ public class BridgeUtil {
     private BridgeUtil() {
     }
 
-    public static String findNameServer() {
-        String s;
-        try {
-            Process p = Runtime.getRuntime().exec("cat /etc/resolv.conf");
-            BufferedReader stdInput = new BufferedReader(new InputStreamReader(p.getInputStream()));
-            while ((s = stdInput.readLine()) != null) {
-                if (s.contains("nameserver"))
-                    return s.replace("nameserver", "").trim();
-
-            }
-            return "";
-        } catch (Exception e) {
-            return "";
-        }
-    }
-
     public static Properties getBuildInfo() {
         return BUILD_INFO;
     }
