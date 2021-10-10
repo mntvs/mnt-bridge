@@ -34,7 +34,7 @@ Currently supports PostgreSQL and Oracle databases.
       BridgeContext bridgeContext = BridgeContext
                 .custom("GROUP_TAG", "META_TAG", new ConnectionData("DB_URL", "USER_NAME","USER_PASSWORD"))
                 .withBeforeProcessing((connection, processData) -> {
-                     // Action which executed before processing in database
+                     // Action which will be executed before processing in the database
                 })
                 .withSchemaName("SCHEMA_NAME")
                 .withDataBaseType(DataBaseType.POSTGRESQL)
