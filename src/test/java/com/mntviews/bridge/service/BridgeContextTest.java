@@ -44,9 +44,9 @@ public class BridgeContextTest extends BaseInit {
 
         BridgeContext bridgeContext = BridgeContext
                 .custom("GROUP_TAG", "META_TAG", new ConnectionData("URL", "USER_NAME", "PASSWORD", "DEFAULT_SCHEMA"))
-                .withBridgeAfterProcessing((connection, processData) -> {
+                .withAfterProcessing((connection, processData) -> {
                 })
-                .withBridgeBeforeProcessing((connection, processData) -> {
+                .withBeforeProcessing((connection, processData) -> {
                 })
                 .withBridgeService(bridgeService)
                 .withDataBaseType(DataBaseType.TEST)

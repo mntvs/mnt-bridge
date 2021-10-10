@@ -23,8 +23,8 @@ public class BridgeServiceImpl implements BridgeService {
     private final BufRepo bufRepo;
 
     @Override
-    public void execute(MetaData metaData, Connection connection, BridgeProcessing bridgeBeforeProcessing, BridgeProcessing bridgeAfterProcessing, String schemaName, Long rawId, Map<String, Object> param) {
-        rawLoopRepo.rawLoop(connection, metaData, bridgeBeforeProcessing, bridgeAfterProcessing, schemaName, rawId, param);
+    public void execute(MetaData metaData, Connection connection, BridgeProcessing beforeProcessing, BridgeProcessing afterProcessing, String schemaName, Long rawId, Map<String, Object> param) {
+        rawLoopRepo.rawLoop(connection, metaData, beforeProcessing, afterProcessing, schemaName, rawId, param);
     }
 
     @Override

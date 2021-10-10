@@ -41,13 +41,13 @@ public class RawLoopRepoImpl implements RawLoopRepo {
      *
      * @param connection             opened connection with db
      * @param metaData               system data received from db
-     * @param bridgeBeforeProcessing outer procedure to process current raw before db process
+     * @param beforeProcessing outer procedure to process current raw before db process
      * @param schemaName             schema name for system system objects
      * @param rawId
      * @param param
      */
     @Override
-    public void rawLoop(Connection connection, MetaData metaData, BridgeProcessing bridgeBeforeProcessing, BridgeProcessing bridgeAfterProcessing, String schemaName, Long rawId, Map<String, Object> param) {
+    public void rawLoop(Connection connection, MetaData metaData, BridgeProcessing beforeProcessing, BridgeProcessing afterProcessing, String schemaName, Long rawId, Map<String, Object> param) {
 
         Map<String, Object> localParam = new HashMap<>(metaData.getParam());
         if (param != null)
@@ -104,13 +104,13 @@ public class RawLoopRepoImpl implements RawLoopRepo {
                     preProcess(connection, processData, schemaName);
 
                     if (processData.getProcessedStatus() == BridgeUtil.STATUS_SUCCESS) {
-                        process(processData, bridgeBeforeProcessing, connection);
+                        process(processData, beforeProcessing, connection);
                     }
                     if (processData.getProcessedStatus() == BridgeUtil.STATUS_SUCCESS)
                         process(connection, processData, schemaName);
 
                     if (processData.getProcessedStatus() == BridgeUtil.STATUS_SUCCESS) {
-                        process(processData, bridgeAfterProcessing, connection);
+                        process(processData, afterProcessing, connection);
                     }
                     if (processData.getProcessedStatus() != BridgeUtil.STATUS_SUCCESS)
                         connection.rollback();

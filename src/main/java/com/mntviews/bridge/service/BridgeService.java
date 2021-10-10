@@ -9,7 +9,7 @@ import java.util.Map;
 
 public interface BridgeService {
 
-    void execute(MetaData metaData, Connection connection, BridgeProcessing bridgeBeforeProcessing, BridgeProcessing bridgeAfterProcessing, String schemaName, Long rawId, Map<String, Object> param);
+    void execute(MetaData metaData, Connection connection, BridgeProcessing beforeProcessing, BridgeProcessing afterProcessing, String schemaName, Long rawId, Map<String, Object> param);
 
     MetaData findMetaData(String groupTag, String metaTag, Connection connection, String schemaName);
 

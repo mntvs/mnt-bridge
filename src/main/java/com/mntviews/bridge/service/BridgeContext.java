@@ -44,8 +44,8 @@ public class BridgeContext {
         this.groupTag = builder.groupTag;
         this.metaTag = builder.metaTag;
 
-        this.bridgeBeforeProcessing = builder.bridgeBeforeProcessing;
-        this.bridgeAfterProcessing = builder.bridgeAfterProcessing;
+        this.bridgeBeforeProcessing = builder.beforeProcessing;
+        this.bridgeAfterProcessing = builder.afterProcessing;
 
         if (builder.dataBaseType == null)
             this.dataBaseType = DEFAULT_DATABASE_TYPE;
@@ -153,8 +153,8 @@ public class BridgeContext {
         private final String groupTag;
         private final String metaTag;
         private final ConnectionData connectionData;
-        private BridgeProcessing bridgeBeforeProcessing;
-        private BridgeProcessing bridgeAfterProcessing;
+        private BridgeProcessing beforeProcessing;
+        private BridgeProcessing afterProcessing;
 
         private String schemaName;
         private BridgeService bridgeService;
@@ -167,13 +167,13 @@ public class BridgeContext {
             this.connectionData = connectionData;
         }
 
-        public Builder withBridgeBeforeProcessing(BridgeProcessing bridgeBeforeProcessing) {
-            this.bridgeBeforeProcessing = bridgeBeforeProcessing;
+        public Builder withBeforeProcessing(BridgeProcessing beforeProcessing) {
+            this.beforeProcessing = beforeProcessing;
             return this;
         }
 
-        public Builder withBridgeAfterProcessing(BridgeProcessing bridgeAfterProcessing) {
-            this.bridgeAfterProcessing = bridgeAfterProcessing;
+        public Builder withAfterProcessing(BridgeProcessing afterProcessing) {
+            this.afterProcessing = afterProcessing;
             return this;
         }
 

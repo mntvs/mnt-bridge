@@ -31,7 +31,7 @@ public class OracleContainerUnit extends ContainerUnit {
         attemptTestParam = "<PARAM><ORDER>LIFO</ORDER><ATTEMPT>2</ATTEMPT></PARAM>";
         bridgeContext = BridgeContext
                 .custom(GROUP_TAG, META_TAG, connectionData)
-                .withBridgeAfterProcessing((connection, processData) -> {
+                .withAfterProcessing((connection, processData) -> {
                     if (processData.getRawId() % 2 == 0)
                         throw new RuntimeException(TEST_EXCEPTION_TEXT);
                 })
@@ -43,7 +43,7 @@ public class OracleContainerUnit extends ContainerUnit {
         param.put(ParamEnum.ATTEMPT.name(), 2);
         bridgeContextAttempt = BridgeContext
                 .custom(GROUP_TAG, META_TAG, connectionData)
-                .withBridgeAfterProcessing((connection, processData) -> {
+                .withAfterProcessing((connection, processData) -> {
                     throw new RuntimeException(TEST_EXCEPTION_TEXT);
                 })
                 .withParam(param)
