@@ -33,30 +33,12 @@ public class RawLoopRepoImpl implements RawLoopRepo {
         }
     }
 
-
-    /**
-     * Main loop to process raw queue
-     * TODO: Modify to start with only provided raw_id
-     * TODO: Option to change order
-     *
-     * @param connection             opened connection with db
-     * @param metaData               system data received from db
-     * @param beforeProcessing outer procedure to process current raw before db process
-     * @param schemaName             schema name for system system objects
-     * @param rawId
-     * @param param
-     */
-    @Override
-    public void rawLoop(Connection connection, MetaData metaData, BridgeProcessing beforeProcessing, BridgeProcessing afterProcessing, String schemaName, Long rawId, Map<String, Object> param) {
-
-        Map<String, Object> localParam = new HashMap<>(metaData.getParam());
-        if (param != null)
-            localParam.putAll(param);
+    private String findRawLoopQuery(Map<String,Object> params, Long rawId, String rawFullName) {
         String rawLoopQuery;
         final String paramMessage = "parameter '";
-        final String selectQuery = "select id, s_counter from " + metaData.getRawFullName();
+        final String selectQuery = "select id, s_counter from " + rawFullName;
         if (rawId == null) {
-            Object paramOrder = localParam.get(ParamEnum.ORDER.name());
+            Object paramOrder = params.get(ParamEnum.ORDER.name());
 
             if (paramOrder == null)
                 throw new RawLoopRepoException(paramMessage + ParamEnum.ORDER.name() + "' is not defined");
@@ -78,16 +60,43 @@ public class RawLoopRepoImpl implements RawLoopRepo {
         } else
             rawLoopQuery = selectQuery + " where s_action=0 and id=?";
 
-        Object paramAttempt = localParam.get(ParamEnum.ATTEMPT.name());
+        return rawLoopQuery;
+    }
+
+    Integer findParamInteger(Map<String,Object> params,String paraName) {
+        Object paramAttempt = params.get(paraName);
+        final String paramMessage = "parameter '";
         if (paramAttempt == null)
             throw new RawLoopRepoException(paramMessage + ParamEnum.ATTEMPT.name() + "' is not defined");
 
         if (paramAttempt instanceof String)
-            paramAttempt = Integer.valueOf(String.valueOf(paramAttempt));
+            return Integer.valueOf(String.valueOf(paramAttempt));
 
         if (!(paramAttempt instanceof Integer))
-            throw new RawLoopRepoException(paramMessage + ParamEnum.ATTEMPT.name() + "' is must be Integer");
+            throw new RawLoopRepoException(paramMessage + ParamEnum.ATTEMPT.name() + "' must be Integer");
 
+        return (Integer)paramAttempt;
+    }
+
+    /**
+     * Main loop to process raw queue
+     *
+     * @param connection             opened connection with db
+     * @param metaData               system data received from db
+     * @param beforeProcessing outer procedure to process current raw before db process
+     * @param schemaName             schema name for system system objects
+     * @param rawId
+     * @param param
+     */
+    @Override
+    public void rawLoop(Connection connection, MetaData metaData, BridgeProcessing beforeProcessing, BridgeProcessing afterProcessing, String schemaName, Long rawId, Map<String, Object> param) {
+
+        Map<String, Object> localParam = new HashMap<>(metaData.getParam());
+        if (param != null)
+            localParam.putAll(param);
+        String rawLoopQuery = findRawLoopQuery(localParam, rawId, metaData.getRawFullName());
+
+        int paramAttempt = findParamInteger(localParam,ParamEnum.ATTEMPT.name());
 
         try (PreparedStatement stmt = connection.prepareStatement(rawLoopQuery)) {
             if (rawId != null)
@@ -115,7 +124,7 @@ public class RawLoopRepoImpl implements RawLoopRepo {
                     if (processData.getProcessedStatus() != BridgeUtil.STATUS_SUCCESS)
                         connection.rollback();
 
-                    if ((Integer) paramAttempt != -1 && rs.getInt("s_counter") + 1 >= (Integer) paramAttempt && processData.getProcessedStatus() == BridgeUtil.STATUS_ERROR) {
+                    if (paramAttempt != -1 && rs.getInt("s_counter") + 1 >= paramAttempt && processData.getProcessedStatus() == BridgeUtil.STATUS_ERROR) {
                         processData.setProcessedStatus(BridgeUtil.STATUS_ERROR_UNREPEATABLE);
                     }
 
