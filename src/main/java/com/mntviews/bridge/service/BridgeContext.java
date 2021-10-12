@@ -22,7 +22,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
-public class BridgeContext {
+public class BridgeContext implements Bridge {
 
     public static final String DEFAULT_SCHEMA_NAME = "mnt_bridge";
     public static final DataBaseType DEFAULT_DATABASE_TYPE = DataBaseType.POSTGRESQL;
@@ -81,14 +81,24 @@ public class BridgeContext {
             throw new BridgeContextException("Bridge context is not initialized");
     }
 
+    @Override
     public void execute() {
-        execute(null);
+        checkMetaData();
+        bridgeService.execute(metaData, this.dataBaseType.getConnection(connectionData), bridgeBeforeProcessing, bridgeAfterProcessing, connectionData.getSchemaName(), param);
     }
 
-    public void execute(Long rawId) {
+    @Override
+    public void executeOne(Long rawId) {
         checkMetaData();
-        bridgeService.execute(metaData, this.dataBaseType.getConnection(connectionData), bridgeBeforeProcessing, bridgeAfterProcessing, connectionData.getSchemaName(), rawId, param);
+        bridgeService.executeOne(metaData, this.dataBaseType.getConnection(connectionData), bridgeBeforeProcessing, bridgeAfterProcessing, connectionData.getSchemaName(), rawId, param);
     }
+
+    @Override
+    public void executeGroup(String groupId) {
+        checkMetaData();
+        bridgeService.executeGroup(metaData, this.dataBaseType.getConnection(connectionData), bridgeBeforeProcessing, bridgeAfterProcessing, connectionData.getSchemaName(), groupId, param);
+    }
+
 
     public Connection getConnectionData() {
         return this.dataBaseType.getConnection(connectionData);
@@ -124,19 +134,22 @@ public class BridgeContext {
     }
 
 
+    @Override
     public void migrate(Boolean isClean) {
         dataBaseType.migrate(connectionData, isClean);
     }
 
+    @Override
     public void migrate() {
         dataBaseType.migrate(connectionData, false);
     }
 
-
+    @Override
     public void init() {
         metaData = dataBaseType.init(connectionData, groupTag, metaTag, schemaName, param);
     }
 
+    @Override
     public void clear() {
         dataBaseType.clear(connectionData, groupTag, metaTag);
     }

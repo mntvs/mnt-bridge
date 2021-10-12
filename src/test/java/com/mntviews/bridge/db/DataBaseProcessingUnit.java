@@ -227,6 +227,31 @@ public class DataBaseProcessingUnit extends BaseInit {
     }
 
     @Test
+    void checkOneGroupTest() {
+        final String fGroupTestId = "group_test";
+        for (ContainerUnit containerUnit : containerUnitList) {
+            String dbTypeName = containerUnit.findDbTypeName();
+            containerUnit.getJdbcTemplate().update(containerUnit.wrapCodeBlock(
+                    "BEGIN " +
+                            "                insert into " + SCHEMA_NAME + ".fbi_raw_" + META_TAG + " (id, f_id) values (1, 'f_id_1');\n" +
+                            "                insert into " + SCHEMA_NAME + ".fbi_raw_" + META_TAG + " (id, f_id) values (2, 'f_id_2');\n" +
+                            "                insert into " + SCHEMA_NAME + ".fbi_raw_" + META_TAG + " (id, f_id, f_group_id) values (3, 'f_id_1','" + fGroupTestId + "');\n" +
+                            "                insert into " + SCHEMA_NAME + ".fbi_raw_" + META_TAG + " (id, f_id, f_group_id) values (4, 'f_id_2','" + fGroupTestId + "');\n" +
+                            "END;"));
+            containerUnit.getJdbcTemplate().update(String.format("call %s.prc_start_task(?,?,?,?)", BridgeContext.DEFAULT_SCHEMA_NAME), GROUP_TAG, META_TAG, null, fGroupTestId);
+
+            Integer intactCount = containerUnit.getJdbcTemplate().queryForObject("select count(*) from " + SCHEMA_NAME + ".fbi_raw_" + META_TAG + " where s_status=" + STATUS_INTACT + " and f_group_id is null", Integer.class);
+            assertEquals(2, intactCount, dbTypeName + ": Row with intact status must be 2");
+
+            Integer successCount = containerUnit.getJdbcTemplate().queryForObject("select count(*) from " + SCHEMA_NAME + ".fbi_raw_" + META_TAG + " where s_status=" + STATUS_SUCCESS + " and f_group_id='" + fGroupTestId + "'", Integer.class);
+            assertEquals(2, successCount, dbTypeName + ": Row with success status must be 2");
+
+            successCount = containerUnit.getJdbcTemplate().queryForObject("select count(*) from " + SCHEMA_NAME + ".fbi_buf_" + META_TAG + " where f_group_id='" + fGroupTestId + "'", Integer.class);
+            assertEquals(2, successCount, dbTypeName + ": Row with in buf table must be 2");
+        }
+    }
+
+    @Test
     void checkNotRepeatableException() {
         for (ContainerUnit containerUnit : containerUnitList) {
             String dbTypeName = containerUnit.findDbTypeName();

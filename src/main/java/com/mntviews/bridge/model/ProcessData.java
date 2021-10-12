@@ -9,4 +9,5 @@ public class ProcessData {
     MetaData metaData;
     Integer processedStatus;
     String errorMessage;
+    String groupId;
 }

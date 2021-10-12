@@ -23,8 +23,18 @@ public class BridgeServiceImpl implements BridgeService {
     private final BufRepo bufRepo;
 
     @Override
-    public void execute(MetaData metaData, Connection connection, BridgeProcessing beforeProcessing, BridgeProcessing afterProcessing, String schemaName, Long rawId, Map<String, Object> param) {
-        rawLoopRepo.rawLoop(connection, metaData, beforeProcessing, afterProcessing, schemaName, rawId, param);
+    public void execute(MetaData metaData, Connection connection, BridgeProcessing beforeProcessing, BridgeProcessing afterProcessing, String schemaName, Map<String, Object> param) {
+        rawLoopRepo.rawLoop(connection, metaData, beforeProcessing, afterProcessing, schemaName, null, null, param);
+    }
+
+    @Override
+    public void executeOne(MetaData metaData, Connection connection, BridgeProcessing beforeProcessing, BridgeProcessing afterProcessing, String schemaName, Long rawId, Map<String, Object> param) {
+        rawLoopRepo.rawLoop(connection, metaData, beforeProcessing, afterProcessing, schemaName, rawId, null, param);
+    }
+
+    @Override
+    public void executeGroup(MetaData metaData, Connection connection, BridgeProcessing beforeProcessing, BridgeProcessing afterProcessing, String schemaName, String groupId, Map<String, Object> param) {
+        rawLoopRepo.rawLoop(connection, metaData, beforeProcessing, afterProcessing, schemaName, null, groupId, param);
     }
 
     @Override

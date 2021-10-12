@@ -40,7 +40,7 @@ public class BridgeContextTest extends BaseInit {
 
     @Test
     public void executeBridgeContextTest() {
-        doNothing().when(bridgeService).execute(isA(MetaData.class), isNull(), isA(BridgeProcessing.class), isA(BridgeProcessing.class), isA(String.class), isNull(), isNull());
+        doNothing().when(bridgeService).execute(isA(MetaData.class), isNull(), isA(BridgeProcessing.class), isA(BridgeProcessing.class), isA(String.class), isNull());
 
         BridgeContext bridgeContext = BridgeContext
                 .custom("GROUP_TAG", "META_TAG", new ConnectionData("URL", "USER_NAME", "PASSWORD", "DEFAULT_SCHEMA"))
@@ -194,7 +194,7 @@ public class BridgeContextTest extends BaseInit {
                             "                insert into " + SCHEMA_NAME + ".fbi_raw_" + META_TAG + " (id, f_id) values (2, 'f_id_2');\n" +
                             "END;"));
 
-            bridgeContext.execute(1L);
+            bridgeContext.executeOne(1L);
             Integer intactCount = containerUnit.getJdbcTemplate().queryForObject("select count(*) from " + SCHEMA_NAME + ".fbi_raw_" + META_TAG + " where s_status=" + STATUS_INTACT + " and id=2", Integer.class);
             assertEquals(1, intactCount, dbTypeName + ": Row with intact status must be 1");
 
@@ -202,6 +202,39 @@ public class BridgeContextTest extends BaseInit {
             assertEquals(1, successCount, dbTypeName + ": Row with success status must be 1");
         }
     }
+
+
+    @Test
+    void checkOneGroupTest() {
+        final String fGroupTestId = "group_test";
+
+        for (ContainerUnit containerUnit : containerUnitList) {
+            String dbTypeName = containerUnit.findDbTypeName();
+            log.info(dbTypeName);
+            BridgeContext bridgeContext = containerUnit.getBridgeContext();
+
+            containerUnit.getJdbcTemplate().update(containerUnit.wrapCodeBlock(
+                    "BEGIN " +
+                            "                insert into " + SCHEMA_NAME + ".fbi_raw_" + META_TAG + " (id, f_id) values (1, 'f_id_1');\n" +
+                            "                insert into " + SCHEMA_NAME + ".fbi_raw_" + META_TAG + " (id, f_id) values (2, 'f_id_2');\n" +
+                            "                insert into " + SCHEMA_NAME + ".fbi_raw_" + META_TAG + " (id, f_id, f_group_id) values (3, 'f_id_1','" + fGroupTestId + "');\n" +
+                            "                insert into " + SCHEMA_NAME + ".fbi_raw_" + META_TAG + " (id, f_id, f_group_id) values (5, 'f_id_2','" + fGroupTestId + "');\n" +
+                            "END;"));
+
+            bridgeContext.executeGroup(fGroupTestId);
+
+            Integer intactCount = containerUnit.getJdbcTemplate().queryForObject("select count(*) from " + SCHEMA_NAME + ".fbi_raw_" + META_TAG + " where s_status=" + STATUS_INTACT + " and f_group_id is null", Integer.class);
+            assertEquals(2, intactCount, dbTypeName + ": Row with intact status must be 2");
+
+            Integer successCount = containerUnit.getJdbcTemplate().queryForObject("select count(*) from " + SCHEMA_NAME + ".fbi_raw_" + META_TAG + " where s_status=" + STATUS_SUCCESS + " and f_group_id='" + fGroupTestId + "'", Integer.class);
+            assertEquals(2, successCount, dbTypeName + ": Row with success status must be 2");
+
+            successCount = containerUnit.getJdbcTemplate().queryForObject("select count(*) from " + SCHEMA_NAME + ".fbi_buf_" + META_TAG + " where f_group_id='" + fGroupTestId + "'", Integer.class);
+            assertEquals(2, successCount, dbTypeName + ": Row with in buf table must be 2");
+        }
+
+        }
+
 
     @Test
     void checkAttemptParam() {

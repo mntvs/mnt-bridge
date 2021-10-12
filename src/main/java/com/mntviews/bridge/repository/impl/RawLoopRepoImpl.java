@@ -33,7 +33,7 @@ public class RawLoopRepoImpl implements RawLoopRepo {
         }
     }
 
-    private String findRawLoopQuery(Map<String,Object> params, Long rawId, String rawFullName) {
+    private String findRawLoopQuery(Map<String, Object> params, Long rawId, String groupId, String rawFullName) {
         String rawLoopQuery;
         final String paramMessage = "parameter '";
         final String selectQuery = "select id, s_counter from " + rawFullName;
@@ -48,10 +48,14 @@ public class RawLoopRepoImpl implements RawLoopRepo {
 
             switch ((String) paramOrder) {
                 case "LIFO":
-                    rawLoopQuery = selectQuery + " where s_action=0 order by s_date desc, id desc";
+                    if (groupId == null) rawLoopQuery = selectQuery + " where s_action=0 order by s_date desc, id desc";
+                    else
+                        rawLoopQuery = selectQuery + " where s_action=0 and f_group_id=? order by s_date desc, id desc";
                     break;
                 case "FIFO":
-                    rawLoopQuery = selectQuery + " where s_action=0 order by s_date asc, id asc";
+                    if (groupId == null) rawLoopQuery = selectQuery + " where s_action=0 order by s_date asc, id asc";
+                    else
+                        rawLoopQuery = selectQuery + " where s_action=0 and f_group_id=? order by s_date asc, id asc";
                     break;
                 default:
                     throw new RawLoopRepoException("Parameter '" + BridgeUtil.PARAM_ORDER + "' must be FIFO or LIFO");
@@ -63,7 +67,7 @@ public class RawLoopRepoImpl implements RawLoopRepo {
         return rawLoopQuery;
     }
 
-    Integer findParamInteger(Map<String,Object> params,String paraName) {
+    Integer findParamInteger(Map<String, Object> params, String paraName) {
         Object paramAttempt = params.get(paraName);
         final String paramMessage = "parameter '";
         if (paramAttempt == null)
@@ -75,32 +79,35 @@ public class RawLoopRepoImpl implements RawLoopRepo {
         if (!(paramAttempt instanceof Integer))
             throw new RawLoopRepoException(paramMessage + ParamEnum.ATTEMPT.name() + "' must be Integer");
 
-        return (Integer)paramAttempt;
+        return (Integer) paramAttempt;
     }
 
     /**
      * Main loop to process raw queue
      *
-     * @param connection             opened connection with db
-     * @param metaData               system data received from db
+     * @param connection       opened connection with db
+     * @param metaData         system data received from db
      * @param beforeProcessing outer procedure to process current raw before db process
-     * @param schemaName             schema name for system system objects
+     * @param schemaName       schema name for system system objects
      * @param rawId
      * @param param
      */
     @Override
-    public void rawLoop(Connection connection, MetaData metaData, BridgeProcessing beforeProcessing, BridgeProcessing afterProcessing, String schemaName, Long rawId, Map<String, Object> param) {
+    public void rawLoop(Connection connection, MetaData metaData, BridgeProcessing beforeProcessing, BridgeProcessing afterProcessing, String schemaName, Long rawId, String groupId, Map<String, Object> param) {
 
         Map<String, Object> localParam = new HashMap<>(metaData.getParam());
         if (param != null)
             localParam.putAll(param);
-        String rawLoopQuery = findRawLoopQuery(localParam, rawId, metaData.getRawFullName());
+        String rawLoopQuery = findRawLoopQuery(localParam, rawId, groupId, metaData.getRawFullName());
 
-        int paramAttempt = findParamInteger(localParam,ParamEnum.ATTEMPT.name());
+        int paramAttempt = findParamInteger(localParam, ParamEnum.ATTEMPT.name());
 
         try (PreparedStatement stmt = connection.prepareStatement(rawLoopQuery)) {
             if (rawId != null)
                 stmt.setLong(1, rawId);
+            else if (groupId != null)
+                stmt.setString(1, groupId);
+
             try (ResultSet rs = stmt.executeQuery()) {
                 while (rs.next()) {
                     Integer processedStatus = 0;
@@ -110,6 +117,7 @@ public class RawLoopRepoImpl implements RawLoopRepo {
                     processData.setMetaData(metaData);
                     processData.setProcessedStatus(processedStatus);
                     processData.setErrorMessage(errorMessage);
+                    processData.setGroupId(groupIdv);
                     preProcess(connection, processData, schemaName);
 
                     if (processData.getProcessedStatus() == BridgeUtil.STATUS_SUCCESS) {
@@ -146,7 +154,7 @@ public class RawLoopRepoImpl implements RawLoopRepo {
             prcPreProcess.setLong(1, processData.getRawId());
             prcPreProcess.setString(2, processData.getMetaData().getRawFullName());
             prcPreProcess.setString(3, processData.getMetaData().getBufFullName());
-            prcPreProcess.setString(4, processData.getMetaData().getPrcExecFullName());
+            prcPreProcess.setString(4, processData.getGroupId());
             prcPreProcess.setInt(5, processData.getProcessedStatus());
             prcPreProcess.setString(6, processData.getErrorMessage());
             prcPreProcess.setNull(7, Types.BIGINT);

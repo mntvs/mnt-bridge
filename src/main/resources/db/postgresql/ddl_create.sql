@@ -156,7 +156,8 @@ begin
             ' f_id TEXT NOT NULL,' ||
             ' s_msg TEXT,' ||
             ' f_msg TEXT,' ||
-            ' s_counter INTEGER DEFAULT 0 NOT NULL' ||
+            ' s_counter INTEGER DEFAULT 0 NOT NULL,' ||
+            ' f_group_id TEXT' ||
             ')';
 
     EXECUTE format(
@@ -175,6 +176,9 @@ begin
 
     EXECUTE format('CREATE INDEX IF NOT EXISTS %s_index
         ON %s (s_action)', l_raw_name, l_raw_full_name);
+
+    EXECUTE format('CREATE INDEX IF NOT EXISTS %s_g_index
+        ON %s (f_group_id)', l_raw_name, l_raw_full_name);
 
     BEGIN
         EXECUTE format('ALTER TABLE %s ADD CONSTRAINT %s_oper_ch CHECK (f_oper IN (0,1))', l_raw_full_name,
@@ -205,15 +209,18 @@ begin
             ' s_date TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),' ||
             ' f_raw_id BIGINT NOT NULL,' ||
             ' f_id TEXT NOT NULL,' ||
-            ' s_counter INTEGER DEFAULT 0 NOT NULL' ||
+            ' s_counter INTEGER DEFAULT 0 NOT NULL,' ||
+            ' f_group_id TEXT' ||
             ')';
 
     EXECUTE 'CREATE UNIQUE INDEX IF NOT EXISTS ' || l_buf_name || '_f_id_index
         on ' || l_buf_full_name || ' (f_id)';
 
-
     EXECUTE 'CREATE UNIQUE INDEX IF NOT EXISTS ' || l_buf_name || '_raw_id_index
         on ' || l_buf_full_name || ' (f_raw_id)';
+
+    EXECUTE 'CREATE INDEX IF NOT EXISTS ' || l_buf_name || '_g_index
+        on ' || l_buf_full_name || ' (f_group_id)';
 
     BEGIN
         EXECUTE format('ALTER TABLE %s ADD CONSTRAINT %s_oper_ch CHECK (f_oper IN (0,1))', l_buf_full_name,
@@ -291,7 +298,7 @@ $$;
 ++
 
 create procedure ${schemaName}.prc_pre_process(IN a_raw_id BIGINT, IN a_raw_full_name TEXT, IN a_buf_full_name TEXT,
-                                               a_prc_exec_full_name TEXT, INOUT a_processed_status INTEGER,
+                                               a_f_group_id TEXT, INOUT a_processed_status INTEGER,
                                                INOUT a_error_message TEXT, INOUT a_buf_id BIGINT)
     language plpgsql
 as
@@ -314,13 +321,13 @@ begin
 
     if not l_raw_id is null then
         execute 'WITH t AS  (  insert into ' || a_buf_full_name ||
-                ' as t (f_raw_id,f_id, f_payload, f_date, s_counter) values ( $1, $2, $3, $4, 1 ) on conflict (f_id) do ' ||
-                'update set (f_raw_id, f_payload, f_date, s_counter) = ($1,$3,$4, t.s_counter+1)  where $4>t.f_date OR ($4=t.f_date AND $1>=t.f_raw_id) returning  xmax,id
+                ' as t (f_raw_id,f_id, f_payload, f_date, s_counter, f_group_id) values ( $1, $2, $3, $4, 1, $5 ) on conflict (f_id) do ' ||
+                'update set (f_raw_id, f_payload, f_date, s_counter, f_group_id) = ($1,$3,$4, t.s_counter+1, $5)  where $4>t.f_date OR ($4=t.f_date AND $1>=t.f_raw_id) returning  xmax,id
             )
         SELECT COUNT(*) AS update_count,
                max(id)
         FROM t'
-            using l_raw_id,l_raw_f_id,l_raw_f_payload, l_raw_f_date into l_update_count, l_buf_id;
+            using l_raw_id,l_raw_f_id,l_raw_f_payload, l_raw_f_date, a_f_group_id into l_update_count, l_buf_id;
 
         if l_update_count > 0 then
             a_buf_id := l_buf_id;
@@ -388,7 +395,8 @@ $$;
 ++
 
 create procedure ${schemaName}.prc_start_task(a_group_tag text, a_meta_tag text, a_raw_id bigint DEFAULT NULL::bigint,
-                                              a_msg IN text default NULL, a_param IN text default null)
+                                              a_f_group_id text DEFAULT NULL, a_msg IN text default NULL,
+                                              a_param IN text default null)
     language plpgsql
 as
 $$
@@ -410,12 +418,25 @@ begin
            buf_full_name,
            prc_exec_full_name,
            case
-               when param ->> 'ORDER' = 'FIFO' then 'select id,s_counter from ' || raw_full_name ||
-                                                    ' where s_action=0 order by s_date asc, id asc'
-               when param ->> 'ORDER' = 'LIFO' or param::JSONB ->> 'ORDER' is null THEN
-                           'select id,s_counter from ' || raw_full_name ||
-                           ' where s_action=0 order by s_date desc, id desc'
-               end,
+               when a_raw_id is null then
+                   case
+                       when a_f_group_id is null then
+                           case
+                               when param ->> 'ORDER' = 'FIFO' then 'select id,s_counter from ' || raw_full_name ||
+                                                                    ' where s_action=0 order by s_date asc, id asc'
+                               when param ->> 'ORDER' = 'LIFO' or param::JSONB ->> 'ORDER' is null THEN
+                                           'select id,s_counter from ' || raw_full_name ||
+                                           ' where s_action=0 order by s_date desc, id desc'
+                               end
+                       else
+                           case
+                               when param ->> 'ORDER' = 'FIFO' then 'select id,s_counter from ' || raw_full_name ||
+                                                                    ' where s_action=0 and f_group_id=$2 order by s_date asc, id asc'
+                               when param ->> 'ORDER' = 'LIFO' or param::JSONB ->> 'ORDER' is null THEN
+                                           'select id,s_counter from ' || raw_full_name ||
+                                           ' where s_action=0 and f_group_id=$2 order by s_date desc, id desc'
+                               end
+                       end end,
            coalesce((param ->> 'ATTEMPT')::INTEGER, -1)
     into l_raw_full_name,l_buf_full_name,l_prc_exec_full_name, l_raw_loop_query, l_attempt
     from (select raw_full_name,
@@ -426,24 +447,28 @@ begin
           where GROUP_tag = a_group_tag
             and META_TAG = a_meta_tag) tt;
 
-    if not a_raw_id is null then
+
+    if a_raw_id is null then
+        if l_raw_loop_query is null then
+            raise exception 'Param ''ORDER'' is not defined';
+        end if;
+    else
         l_raw_loop_query := 'select id,s_counter from ' || l_raw_full_name || ' where s_action=0 and id=$1';
     end if;
 
-    for c_raw_rec in execute l_raw_loop_query using a_raw_id
+    for c_raw_rec in execute l_raw_loop_query using a_raw_id, a_f_group_id
         loop
             /* process the result row */
             l_error_message := NULL;
             l_processed_status := NULL;
 
             call ${schemaName}.prc_pre_process(c_raw_rec.id, l_raw_full_name, l_buf_full_name,
-                                               l_prc_exec_full_name, l_processed_status, l_error_message, l_buf_id);
+                                               a_f_group_id, l_processed_status, l_error_message, l_buf_id);
 
             if l_processed_status = 1 then
                 call ${schemaName}.prc_process(c_raw_rec.id, l_buf_id, l_prc_exec_full_name, l_processed_status,
                                                l_error_message);
             end if;
-
 
 
             if l_attempt <> -1 and c_raw_rec.s_counter + 1 >= l_attempt and l_processed_status = -3 then

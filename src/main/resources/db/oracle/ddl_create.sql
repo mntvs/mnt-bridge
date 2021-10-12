@@ -191,7 +191,8 @@ begin
                           ' f_id VARCHAR2(2000) NOT NULL,' ||
                           ' s_msg CLOB,' ||
                           ' f_msg CLOB,' ||
-                          ' s_counter NUMBER DEFAULT 0 NOT NULL' ||
+                          ' s_counter NUMBER DEFAULT 0 NOT NULL,' ||
+                          ' f_group_id VARCHAR2(2000)' ||
                           ')';
     end if;
 
@@ -223,6 +224,20 @@ begin
         EXECUTE IMMEDIATE 'CREATE INDEX ' || l_schema_name || '.' || l_name ||
                           ' ON ' || l_raw_full_name || ' (s_action)';
     end if;
+
+    l_name := l_raw_name || '_g_index';
+    SELECT count(*)
+    into l_count
+    FROM ALL_OBJECTS
+    WHERE OBJECT_NAME = UPPER(l_name)
+      AND OWNER = UPPER(l_schema_name)
+      AND OBJECT_TYPE = 'INDEX';
+
+    if l_count = 0 then
+        EXECUTE IMMEDIATE 'CREATE INDEX ' || l_schema_name || '.' || l_name ||
+                          ' ON ' || l_raw_full_name || ' (f_group_id)';
+    end if;
+
     /* BUF table creation */
     SELECT count(*)
     into l_count
@@ -241,7 +256,8 @@ begin
                           ' s_date DATE DEFAULT SYSDATE NOT NULL ,' ||
                           ' f_raw_id NUMBER(19) NOT NULL,' ||
                           ' f_id VARCHAR2(2000) NOT NULL,' ||
-                          ' s_counter NUMBER DEFAULT 0 NOT NULL' ||
+                          ' s_counter NUMBER DEFAULT 0 NOT NULL,' ||
+                          ' f_group_id VARCHAR2(2000)' ||
                           ')';
     end if;
 
@@ -259,6 +275,20 @@ begin
     if l_count = 0 then
         EXECUTE IMMEDIATE 'CREATE UNIQUE INDEX ' || l_schema_name || '.' || l_name ||
                           ' on ' || l_buf_full_name || ' (f_id)';
+    end if;
+
+
+    l_name := l_buf_name || '_g_index';
+    SELECT count(*)
+    into l_count
+    FROM ALL_OBJECTS
+    WHERE OBJECT_NAME = UPPER(l_name)
+      AND OWNER = UPPER(l_schema_name)
+      AND OBJECT_TYPE = 'INDEX';
+
+    if l_count = 0 then
+        EXECUTE IMMEDIATE 'CREATE INDEX ' || l_schema_name || '.' || l_name ||
+                          ' on ' || l_buf_full_name || ' (f_group_id)';
     end if;
 
     l_name := l_buf_name || '_raw_id_index';
@@ -481,7 +511,7 @@ $$
 
 create or replace procedure ${schemaName}.prc_pre_process(a_raw_id IN NUMBER, a_raw_full_name IN VARCHAR2,
                                                           a_buf_full_name IN VARCHAR2,
-                                                          a_prc_exec_full_name IN VARCHAR2,
+                                                          a_f_group_id IN VARCHAR2,
                                                           a_processed_status IN OUT NUMBER,
                                                           a_error_message IN OUT VARCHAR2,
                                                           a_buf_id OUT NUMBER)
@@ -491,6 +521,7 @@ as
     l_raw_f_payload CLOB;
     l_raw_f_date    DATE;
     l_raw_s_status  NUMBER;
+    l_f_group_id    VARCHAR2(2000);
 begin
     a_buf_id := null;
 
@@ -501,10 +532,10 @@ begin
         using a_raw_id;
 
     execute immediate 'merge into ' || a_buf_full_name ||
-                      ' a using (select :1 as raw_id, :2 raw_f_id, :3 raw_f_payload, :4 f_date from dual) b on (a.f_id = b.raw_f_id) when not matched then ' ||
-                      'insert (f_raw_id,f_id, f_payload, f_date, s_counter) values (b.raw_id, b.raw_f_id, b.raw_f_payload, b.f_date, 1) when matched then ' ||
-                      'update set a.f_raw_id=b.raw_id,a.f_payload=b.raw_f_payload,a.f_date=b.f_date, s_counter=s_counter+1 where :5>a.f_date OR (:6=a.f_date AND :7>=a.f_raw_id)' using
-        l_raw_id,l_raw_f_id,l_raw_f_payload, l_raw_f_date, l_raw_f_date,l_raw_f_date, l_raw_id;
+                      ' a using (select :1 as raw_id, :2 raw_f_id, :3 raw_f_payload, :4 f_date, :5 f_group_id from dual) b on (a.f_id = b.raw_f_id) when not matched then ' ||
+                      'insert (f_raw_id,f_id, f_payload, f_date, s_counter, f_group_id) values (b.raw_id, b.raw_f_id, b.raw_f_payload, b.f_date, 1, b.f_group_id) when matched then ' ||
+                      'update set a.f_raw_id=b.raw_id,a.f_payload=b.raw_f_payload,a.f_date=b.f_date, s_counter=s_counter+1, a.f_group_id=b.f_group_id where :6>a.f_date OR (:7=a.f_date AND :8>=a.f_raw_id)' using
+        l_raw_id,l_raw_f_id,l_raw_f_payload, l_raw_f_date, a_f_group_id,l_raw_f_date,l_raw_f_date, l_raw_id;
 
     if SQL%ROWCOUNT > 0 then
         execute immediate 'select id from ' || a_buf_full_name || ' where f_id=:1' into a_buf_id using l_raw_f_id;
@@ -564,7 +595,9 @@ $$
 
 
 create or replace procedure ${schemaName}.prc_start_task(a_group_tag VARCHAR2, a_meta_tag VARCHAR2,
-                                                         a_raw_id NUMBER DEFAULT NULL, a_msg IN CLOB default NULL,
+                                                         a_raw_id NUMBER DEFAULT NULL,
+                                                         a_f_group_id VARCHAR2 DEFAULT NULL,
+                                                         a_msg IN CLOB default NULL,
                                                          a_param IN VARCHAR2 default null)
 as
     l_count              NUMBER := 0;
@@ -585,13 +618,25 @@ begin
     select raw_full_name,
            buf_full_name,
            prc_exec_full_name,
-           case extract(param, 'PARAM/ORDER/text()').getStringVal()
-               when 'FIFO' then 'select id, s_counter from ' || raw_full_name ||
-                                ' where s_action=0 order by s_date asc, id asc'
-               when 'LIFO' then 'select id, s_counter from ' || raw_full_name ||
-                                ' where s_action=0 order by s_date desc, id desc'
-               end
-            ,
+           case
+               when a_raw_id is null then
+                   case
+                       when a_f_group_id is null then
+                           case extract(param, 'PARAM/ORDER/text()').getStringVal()
+                               when 'FIFO' then 'select id, s_counter from ' || raw_full_name ||
+                                                ' where s_action=0 order by s_date asc, id asc'
+                               when 'LIFO' then 'select id, s_counter from ' || raw_full_name ||
+                                                ' where s_action=0 order by s_date desc, id desc'
+                               end
+                       else
+                           case extract(param, 'PARAM/ORDER/text()').getStringVal()
+                               when 'FIFO' then 'select id, s_counter from ' || raw_full_name ||
+                                                ' where s_action=0 and f_group_id=:1  order by s_date asc, id asc'
+                               when 'LIFO' then 'select id, s_counter from ' || raw_full_name ||
+                                                ' where s_action=0 and f_group_id=:1 order by s_date desc, id desc'
+                               end
+                       end
+               end,
            nvl(extract(param, 'PARAM/ATTEMPT/text()').getNumberVal(), -1)
     into l_raw_full_name,l_buf_full_name,l_prc_exec_full_name,l_raw_loop_query,l_attempt
     from (select raw_full_name,
@@ -607,7 +652,11 @@ begin
         if l_raw_loop_query is null then
             raise_application_error(-20802, 'Param ''ORDER'' is not defined');
         end if;
-        open c_raw_rec for l_raw_loop_query;
+        if a_f_group_id is null then
+            open c_raw_rec for l_raw_loop_query;
+        else
+            open c_raw_rec for l_raw_loop_query using a_f_group_id;
+        end if;
     else
         open c_raw_rec for 'select id, s_counter from ' || l_raw_full_name ||
                            ' where s_action=0 and id=:1' using a_raw_id;
@@ -620,7 +669,7 @@ begin
         l_error_message := NULL;
         l_processed_status := NULL;
         ${schemaName}.prc_pre_process(l_raw_id, l_raw_full_name, l_buf_full_name,
-                                      l_prc_exec_full_name, l_processed_status, l_error_message, l_buf_id);
+                                      a_f_group_id, l_processed_status, l_error_message, l_buf_id);
 
 
         if l_processed_status = 1 then
