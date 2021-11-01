@@ -168,7 +168,7 @@ public class BridgeContextTest extends BaseInit {
             RawData rawData = new RawData();
             rawData.setFId("1");
             rawData.setFPayload("test");
-            Connection connection = bridgeContext.getConnection();
+            Connection connection = bridgeContext.findConnection();
             bridgeContext.saveRawData(rawData, connection);
             rawData.setFPayload("test_edited");
             bridgeContext.saveRawData(rawData, connection);

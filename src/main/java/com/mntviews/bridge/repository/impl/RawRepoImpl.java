@@ -37,7 +37,6 @@ public class RawRepoImpl implements RawRepo {
                             throw new RawRepoException("Insert raw error");
                         }
                     }
-
                 }
             } else {
                 try (PreparedStatement stmt = connection
@@ -51,7 +50,7 @@ public class RawRepoImpl implements RawRepo {
                     }
                 }
             }
-
+            connection.commit();
         } catch (Exception e) {
             throw new RawRepoException(e);
         }

@@ -15,7 +15,7 @@
 
 * sending mail periodically
 * sites scraping
-* bridges between systems
+* system integrations
 * periodic application health check
 * complex calculations
 

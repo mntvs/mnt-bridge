@@ -45,7 +45,7 @@ public class PostgresContainerUnit extends ContainerUnit {
                 .withDataBaseType(DataBaseType.POSTGRESQL)
                 .build();
 
-        connection = bridgeContext.getConnection();
+        connection = bridgeContext.findConnection();
 
         PGSimpleDataSource dataSource = new PGSimpleDataSource();
         dataSource.setUrl(DB_URL);

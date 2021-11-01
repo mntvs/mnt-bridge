@@ -17,6 +17,7 @@ import com.mntviews.bridge.service.impl.BridgeServiceImpl;
 import lombok.Getter;
 
 import java.sql.Connection;
+import java.sql.SQLException;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.Objects;
@@ -26,7 +27,6 @@ public class BridgeContext implements Bridge {
 
     public static final String DEFAULT_SCHEMA_NAME = "mnt_bridge";
     public static final DataBaseType DEFAULT_DATABASE_TYPE = DataBaseType.POSTGRESQL;
-
     private final String groupTag;
     private final String metaTag;
     private final ConnectionData connectionData;
@@ -82,52 +82,107 @@ public class BridgeContext implements Bridge {
     }
 
     @Override
+    public void execute(Connection connection) {
+        bridgeService.execute(metaData, connection, bridgeBeforeProcessing, bridgeAfterProcessing, connectionData.getSchemaName(), param);
+    }
+
+    @Override
     public void execute() {
         checkMetaData();
-        bridgeService.execute(metaData, this.dataBaseType.getConnection(connectionData), bridgeBeforeProcessing, bridgeAfterProcessing, connectionData.getSchemaName(), param);
+        Connection connection = findConnection();
+        execute(connection);
+        closeConnection(connection);
+    }
+
+    @Override
+    public void executeOne(Long rawId, Connection connection) {
+        bridgeService.executeOne(metaData, connection, bridgeBeforeProcessing, bridgeAfterProcessing, connectionData.getSchemaName(), rawId, param);
     }
 
     @Override
     public void executeOne(Long rawId) {
         checkMetaData();
-        bridgeService.executeOne(metaData, this.dataBaseType.getConnection(connectionData), bridgeBeforeProcessing, bridgeAfterProcessing, connectionData.getSchemaName(), rawId, param);
+        Connection connection = findConnection();
+        executeOne(rawId, connection);
+        closeConnection(connection);
+    }
+
+    @Override
+    public void executeGroup(String groupId, Connection connection) {
+        bridgeService.executeGroup(metaData, connection, bridgeBeforeProcessing, bridgeAfterProcessing, connectionData.getSchemaName(), groupId, param);
     }
 
     @Override
     public void executeGroup(String groupId) {
         checkMetaData();
-        bridgeService.executeGroup(metaData, this.dataBaseType.getConnection(connectionData), bridgeBeforeProcessing, bridgeAfterProcessing, connectionData.getSchemaName(), groupId, param);
+        Connection connection = findConnection();
+        executeGroup(groupId, connection);
+        closeConnection(connection);
     }
 
-
-    public Connection getConnectionData() {
-        return this.dataBaseType.getConnection(connectionData);
+    @Override
+    public ConnectionData getConnectionData() {
+        return connectionData;
     }
 
-
+    @Override
     public RawData findRawDataById(Long id, Connection connection) {
         checkMetaData();
         return bridgeService.findRawDataById(connection, metaData, id);
 
     }
 
+    @Override
+    public void closeConnection(Connection connection) {
+        try {
+            if (connection != null) connection.close();
+        } catch (SQLException e) {
+            throw new BridgeContextException(e);
+        }
+    }
+
+    @Override
+    public RawData findRawDataById(Long id) {
+        checkMetaData();
+        Connection connection = findConnection();
+        RawData rawData = bridgeService.findRawDataById(findConnection(), metaData, id);
+        closeConnection(connection);
+        return rawData;
+    }
+
+    @Override
     public RawData saveRawData(RawData rawData, Connection connection) {
         checkMetaData();
         return bridgeService.saveRawData(connection, metaData, rawData);
     }
 
+    @Override
+    public RawData saveRawData(RawData rawData) {
+        Connection connection = findConnection();
+        RawData rawDataNew = saveRawData(rawData, connection);
+        closeConnection(connection);
+        return rawDataNew;
+    }
+
+    @Override
     public BufData saveBufData(BufData bufData, Connection connection) {
         checkMetaData();
         return bridgeService.saveBufData(connection, metaData, bufData);
     }
 
+    @Override
+    public BufData saveBufData(BufData bufData) {
+        checkMetaData();
+        return bridgeService.saveBufData(findConnection(), metaData, bufData);
+    }
 
+    @Override
     public BufData findBufDataById(Long id, Connection connection) {
         checkMetaData();
         return bridgeService.findBufDataById(connection, metaData, id);
     }
 
-
+    @Override
     public BufData findBufDataByRawId(Long id, Connection connection) {
         checkMetaData();
         return bridgeService.findBufDataByRawId(connection, metaData, id);
@@ -154,9 +209,26 @@ public class BridgeContext implements Bridge {
         dataBaseType.clear(connectionData, groupTag, metaTag);
     }
 
-    public Connection getConnection() {
+    @Override
+    public Connection findConnection() {
         return dataBaseType.getConnection(connectionData);
     }
+
+    @Override
+    public String getGroupTag() {
+        return groupTag;
+    }
+
+    @Override
+    public String getMetaTag() {
+        return metaTag;
+    }
+
+    @Override
+    public String getSchemaName() {
+        return schemaName;
+    }
+
 
     public static Builder custom(String groupTag, String metaTag, ConnectionData connectionData) {
         return new Builder(groupTag, metaTag, connectionData);

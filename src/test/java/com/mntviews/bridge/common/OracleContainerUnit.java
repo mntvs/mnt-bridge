@@ -51,7 +51,7 @@ public class OracleContainerUnit extends ContainerUnit {
                 .withDataBaseType(DataBaseType.ORACLE)
                 .build();
 
-        connection = bridgeContext.getConnection();
+        connection = bridgeContext.findConnection();
 
         OracleConnectionPoolDataSource dataSource = null;
         try {

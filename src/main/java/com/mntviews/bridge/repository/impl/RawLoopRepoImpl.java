@@ -117,7 +117,7 @@ public class RawLoopRepoImpl implements RawLoopRepo {
                     processData.setMetaData(metaData);
                     processData.setProcessedStatus(processedStatus);
                     processData.setErrorMessage(errorMessage);
-                    processData.setGroupId(groupIdv);
+                    processData.setGroupId(groupId);
                     preProcess(connection, processData, schemaName);
 
                     if (processData.getProcessedStatus() == BridgeUtil.STATUS_SUCCESS) {
@@ -125,17 +125,14 @@ public class RawLoopRepoImpl implements RawLoopRepo {
                     }
                     if (processData.getProcessedStatus() == BridgeUtil.STATUS_SUCCESS)
                         process(connection, processData, schemaName);
-
                     if (processData.getProcessedStatus() == BridgeUtil.STATUS_SUCCESS) {
                         process(processData, afterProcessing, connection);
                     }
                     if (processData.getProcessedStatus() != BridgeUtil.STATUS_SUCCESS)
                         connection.rollback();
-
                     if (paramAttempt != -1 && rs.getInt("s_counter") + 1 >= paramAttempt && processData.getProcessedStatus() == BridgeUtil.STATUS_ERROR) {
                         processData.setProcessedStatus(BridgeUtil.STATUS_ERROR_UNREPEATABLE);
                     }
-
                     postProcess(connection, processData, schemaName);
                     connection.commit();
                 }
