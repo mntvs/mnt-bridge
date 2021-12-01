@@ -23,6 +23,8 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
+import static com.mntviews.bridge.service.BridgeUtil.nvl;
+
 public class BridgeContext implements Bridge {
 
     public static final String DEFAULT_SCHEMA_NAME = "mnt_bridge";
@@ -61,11 +63,10 @@ public class BridgeContext implements Bridge {
         } else
             this.bridgeService = builder.bridgeService;
 
-        this.schemaName = Objects.requireNonNullElse(builder.schemaName, DEFAULT_SCHEMA_NAME);
+        this.schemaName = nvl(builder.schemaName, DEFAULT_SCHEMA_NAME);
 
         this.connectionData = new ConnectionData(builder.connectionData.getUrl(), builder.connectionData.getUserName()
-                , builder.connectionData.getPassword(), Objects.requireNonNullElse(builder.connectionData.getSchemaName()
-                , this.schemaName));
+                , builder.connectionData.getPassword(), nvl(builder.connectionData.getSchemaName(), this.schemaName));
 
         if (builder.param != null) {
             // complete param list with default params

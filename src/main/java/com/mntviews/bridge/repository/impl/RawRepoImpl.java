@@ -3,12 +3,15 @@ package com.mntviews.bridge.repository.impl;
 import com.mntviews.bridge.model.RawData;
 import com.mntviews.bridge.repository.RawRepo;
 import com.mntviews.bridge.repository.exception.RawRepoException;
+import com.mntviews.bridge.service.BridgeUtil;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.time.OffsetDateTime;
 import java.util.Objects;
+
+import static com.mntviews.bridge.service.BridgeUtil.nvl;
 
 public class RawRepoImpl implements RawRepo {
 
@@ -19,8 +22,8 @@ public class RawRepoImpl implements RawRepo {
                 try (PreparedStatement stmt = connection
                         .prepareStatement("INSERT INTO " + rawFullName + "(f_id,f_date,f_oper,f_msg,f_payload) values (?,?,?,?,?)", new String[]{"id"})) {
                     stmt.setString(1, rawData.getFId());
-                    stmt.setObject(2, Objects.requireNonNullElse(rawData.getFDate(), OffsetDateTime.now()));
-                    stmt.setByte(3, Objects.requireNonNullElse(rawData.getFOper(), 0).byteValue());
+                    stmt.setObject(2, nvl(rawData.getFDate(), OffsetDateTime.now()));
+                    stmt.setByte(3, nvl(rawData.getFOper(), 0).byteValue());
                     stmt.setString(4, rawData.getFMsg());
                     stmt.setString(5, rawData.getFPayload());
 

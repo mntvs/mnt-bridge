@@ -18,6 +18,10 @@ public class BridgeUtil {
     private BridgeUtil() {
     }
 
+    public static <T> T nvl(T a, T b) {
+        return (a == null) ? b : a;
+    }
+
     public static Properties getBuildInfo() {
         return BUILD_INFO;
     }

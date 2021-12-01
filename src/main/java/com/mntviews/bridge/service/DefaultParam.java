@@ -1,6 +1,6 @@
 package com.mntviews.bridge.service;
 
-import java.util.Objects;
+import static com.mntviews.bridge.service.BridgeUtil.nvl;
 
 public enum DefaultParam {
     ORDER("LIFO"), ATTEMPT(-1);
@@ -19,6 +19,6 @@ public enum DefaultParam {
     }
 
     public Object getValue() {
-        return Objects.requireNonNullElse(valueStr, valueInt);
+        return nvl(valueStr,valueInt);
     }
 }
