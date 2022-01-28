@@ -263,4 +263,34 @@ public class BridgeContextTest extends BaseInit {
         }
     }
 
+
+    @Test
+    void checkSkipParam() {
+        for (ContainerUnit containerUnit : containerUnitList) {
+            String dbTypeName = containerUnit.findDbTypeName();
+            log.info(dbTypeName);
+
+            BridgeContext bridgeContextSkip = containerUnit.getBridgeContextSkip();
+            bridgeContextSkip.init();
+
+            containerUnit.getJdbcTemplate().update(containerUnit.wrapCodeBlock(
+                    "BEGIN " +
+                            "                insert into " + SCHEMA_NAME + ".fbi_raw_" + META_TAG + " (id, f_id, f_date) values (1, 'f_id_1', to_date('01.01.2022','dd.mm.yyyy'));\n" +
+                            "                insert into " + SCHEMA_NAME + ".fbi_raw_" + META_TAG + " (id, f_id, f_date) values (2, 'f_id_1', to_date('02.01.2022','dd.mm.yyyy'));\n" +
+                            "                insert into " + SCHEMA_NAME + ".fbi_raw_" + META_TAG + " (id, f_id, f_date) values (3, 'f_id_1', to_date('02.01.2022','dd.mm.yyyy'));\n" +
+                            "END;"));
+
+            bridgeContextSkip.execute();
+
+            Integer count = containerUnit.getJdbcTemplate().queryForObject("select count(*) from " + SCHEMA_NAME + ".fbi_raw_" + META_TAG + " where s_status=" + STATUS_CANCELED + " and s_action=1 and id=1", Integer.class);
+            assertEquals(1, count, dbTypeName + ": id=1 must be skipped");
+
+            count = containerUnit.getJdbcTemplate().queryForObject("select count(*) from " + SCHEMA_NAME + ".fbi_raw_" + META_TAG + " where s_status=" + STATUS_CANCELED + " and s_action=1 and id=2", Integer.class);
+            assertEquals(1, count, dbTypeName + ": id=2 must be skipped");
+
+            count = containerUnit.getJdbcTemplate().queryForObject("select count(*) from " + SCHEMA_NAME + ".fbi_raw_" + META_TAG + " where s_status=" + STATUS_ERROR + " and s_action=0 and id=3", Integer.class);
+            assertEquals(1, count, dbTypeName + ": id=3 must be error");
+
+        }
+    }
 }

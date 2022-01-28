@@ -3,7 +3,7 @@ package com.mntviews.bridge.service;
 import static com.mntviews.bridge.service.BridgeUtil.nvl;
 
 public enum DefaultParam {
-    ORDER("LIFO"), ATTEMPT(-1);
+    ORDER("LIFO"), ATTEMPT(-1), SKIP(0);
 
     private final String valueStr;
     private final Integer valueInt;

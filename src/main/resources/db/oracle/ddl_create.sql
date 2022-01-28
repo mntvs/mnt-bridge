@@ -10,7 +10,7 @@ create table ${schemaName}.bridge_group
     tag         varchar2(1000) not null,
     note        varchar2(4000),
     schema_name varchar2(30)   not null,
-    param       varchar2(4000) default '<PARAM><ORDER>LIFO</ORDER><ATTEMPT>-1</ATTEMPT></PARAM>'
+    param       varchar2(4000) default '<PARAM><ORDER>LIFO</ORDER><ATTEMPT>-1</ATTEMPT><SKIP>0</SKIP></PARAM>'
 );
 
 comment on table ${schemaName}.bridge_group is 'Contains groups descriptions ${versionStr}';
@@ -520,15 +520,14 @@ as
     l_raw_f_id      VARCHAR2(2000);
     l_raw_f_payload CLOB;
     l_raw_f_date    DATE;
-    l_raw_s_status  NUMBER;
-    l_f_group_id    VARCHAR2(2000);
+    l_count         NUMBER;
 begin
     a_buf_id := null;
 
     /* Executes before process ${versionStr} */
-    execute IMMEDIATE 'select id,f_id,f_payload,f_date,s_status from ' || a_raw_full_name ||
+    execute IMMEDIATE 'select id,f_id,f_payload,f_date from ' || a_raw_full_name ||
                       ' where s_action=0 and id=:1 for update skip locked'
-        into l_raw_id,l_raw_f_id,l_raw_f_payload,l_raw_f_date,l_raw_s_status
+        into l_raw_id,l_raw_f_id,l_raw_f_payload,l_raw_f_date
         using a_raw_id;
 
     execute immediate 'merge into ' || a_buf_full_name ||
@@ -538,13 +537,22 @@ begin
         l_raw_id,l_raw_f_id,l_raw_f_payload, l_raw_f_date, a_f_group_id,l_raw_f_date,l_raw_f_date, l_raw_id;
 
     if SQL%ROWCOUNT > 0 then
-        execute immediate 'select id from ' || a_buf_full_name || ' where f_id=:1' into a_buf_id using l_raw_f_id;
-        l_raw_s_status := 1; -- Success
+        if a_processed_status = 1 then
+            execute IMMEDIATE 'select count(*) from ' || a_raw_full_name ||
+                              ' where id<>:1 and f_id=:2 and (f_date>:3 or (f_date=:4 and id>:5))'
+                into l_count
+                using l_raw_id,l_raw_f_id,l_raw_f_date,l_raw_f_date,l_raw_id;
+            if l_count>0 then
+                a_processed_status := 5; -- Skipped
+            end if;
+        else
+            execute immediate 'select id from ' || a_buf_full_name || ' where f_id=:1' into a_buf_id using l_raw_f_id;
+            a_processed_status := 1; -- Success
+        end if;
     else
-        l_raw_s_status := 5; -- Skiped
+        a_processed_status := 5; -- Skipped
     end if;
 
-    a_processed_status := l_raw_s_status;
     -- processing finished successfully
 exception
     when no_data_found then
@@ -613,6 +621,7 @@ as
     l_buf_id             NUMBER(19);
     l_attempt            NUMBER;
     l_counter            NUMBER;
+    l_param_skip         NUMBER;
 begin
     /* Start processing ${versionStr} */
     select raw_full_name,
@@ -637,8 +646,8 @@ begin
                                end
                        end
                end,
-           nvl(extract(param, 'PARAM/ATTEMPT/text()').getNumberVal(), -1)
-    into l_raw_full_name,l_buf_full_name,l_prc_exec_full_name,l_raw_loop_query,l_attempt
+           nvl(extract(param, 'PARAM/ATTEMPT/text()').getNumberVal(), -1),nvl(extract(param, 'PARAM/SKIP/text()').getNumberVal(), 0)
+    into l_raw_full_name,l_buf_full_name,l_prc_exec_full_name,l_raw_loop_query,l_attempt,l_param_skip
     from (select raw_full_name,
                  buf_full_name,
                  prc_exec_full_name,
@@ -667,7 +676,7 @@ begin
         EXIT WHEN c_raw_rec%NOTFOUND;
         /* process the result row */
         l_error_message := NULL;
-        l_processed_status := NULL;
+        l_processed_status := l_param_skip;
         ${schemaName}.prc_pre_process(l_raw_id, l_raw_full_name, l_buf_full_name,
                                       a_f_group_id, l_processed_status, l_error_message, l_buf_id);
 

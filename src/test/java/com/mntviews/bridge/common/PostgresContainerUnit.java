@@ -23,6 +23,7 @@ public class PostgresContainerUnit extends ContainerUnit {
     public PostgresContainerUnit() {
         connectionData = new ConnectionData(DB_URL, USER_NAME, USER_PASSWORD, BridgeContext.DEFAULT_SCHEMA_NAME);
         attemptTestParam = "{\"ORDER\": \"LIFO\",\"ATTEMPT\": 2}";
+        skipTestParam = "{\"ORDER\": \"LIFO\",\"ATTEMPT\": -1,\"SKIP\": 1}";
         bridgeContext = BridgeContext
                 .custom(GROUP_TAG, META_TAG, connectionData)
                 .withAfterProcessing((connection, processData) -> {
@@ -36,6 +37,18 @@ public class PostgresContainerUnit extends ContainerUnit {
         Map<String, Object> param = new HashMap<>();
         param.put(ParamEnum.ATTEMPT.name(), 2);
         bridgeContextAttempt = BridgeContext
+                .custom(GROUP_TAG, META_TAG, connectionData)
+                .withAfterProcessing((connection, processData) -> {
+                    throw new RuntimeException(TEST_EXCEPTION_TEXT);
+                })
+                .withParam(param)
+                .withSchemaName(SCHEMA_NAME)
+                .withDataBaseType(DataBaseType.POSTGRESQL)
+                .build();
+
+        param = new HashMap<>();
+        param.put(ParamEnum.SKIP.name(), 1);
+        bridgeContextSkip = BridgeContext
                 .custom(GROUP_TAG, META_TAG, connectionData)
                 .withAfterProcessing((connection, processData) -> {
                     throw new RuntimeException(TEST_EXCEPTION_TEXT);

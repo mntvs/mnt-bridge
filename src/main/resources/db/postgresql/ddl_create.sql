@@ -10,8 +10,8 @@ create table ${schemaName}.bridge_group
     schema_name text      not null,
     param       text      not null default '{
       "ORDER": "LIFO",
-      "ATTEMPT": -1
-    }'
+      "ATTEMPT": -1,
+      "SKIP":0 }'
 );
 
 comment on table ${schemaName}.bridge_group is 'Contains groups descriptions ${versionStr}';
@@ -309,15 +309,15 @@ declare
     l_raw_f_id      text;
     l_raw_f_payload text;
     l_raw_f_date    timestamp with time zone;
-    l_raw_s_status  smallint;
     l_update_count  integer;
+    l_count integer;
 begin
     /* Executes before process ${versionStr} */
 
     a_buf_id := null;
-    execute 'select id,f_id,f_payload,f_date,s_status from ' || a_raw_full_name ||
+    execute 'select id,f_id,f_payload,f_date from ' || a_raw_full_name ||
             ' where s_action=0 and id=$1 for update skip locked'
-        using a_raw_id into l_raw_id,l_raw_f_id,l_raw_f_payload,l_raw_f_date,l_raw_s_status;
+        using a_raw_id into l_raw_id,l_raw_f_id,l_raw_f_payload,l_raw_f_date;
 
     if not l_raw_id is null then
         execute 'WITH t AS  (  insert into ' || a_buf_full_name ||
@@ -330,13 +330,22 @@ begin
             using l_raw_id,l_raw_f_id,l_raw_f_payload, l_raw_f_date, a_f_group_id into l_update_count, l_buf_id;
 
         if l_update_count > 0 then
-            a_buf_id := l_buf_id;
-            l_raw_s_status := 1; -- Success
+            if a_processed_status = 1 then
+                execute 'select count(*) from ' || a_raw_full_name ||
+                        ' where id<>$1 and f_id=$2 and (f_date>$3 or (f_date=$3 and id>$1))'
+                    into l_count
+                    using l_raw_id,l_raw_f_id,l_raw_f_date;
+                if l_count>0 then
+                    a_processed_status := 5; -- Skipped
+                end if;
+            else
+                a_buf_id := l_buf_id;
+                a_processed_status := 1; -- Success
+            end if;
         else
-            l_raw_s_status := 5; -- Skipped
+            a_processed_status := 5; -- Skipped
         end if;
 
-        a_processed_status := l_raw_s_status;
         -- processing finished successfully
     else
         a_processed_status := 0; -- processing not happened. Omitted
@@ -411,6 +420,7 @@ declare
     l_prc_exec_full_name text;
     l_buf_id             bigint;
     l_attempt            integer;
+    l_param_skip         integer;
 begin
     /* Start processing ${versionStr} */
 
@@ -437,8 +447,8 @@ begin
                                            ' where s_action=0 and f_group_id=$2 order by s_date desc, id desc'
                                end
                        end end,
-           coalesce((param ->> 'ATTEMPT')::INTEGER, -1)
-    into l_raw_full_name,l_buf_full_name,l_prc_exec_full_name, l_raw_loop_query, l_attempt
+           coalesce((param ->> 'ATTEMPT')::INTEGER, -1),coalesce((param ->> 'SKIP')::INTEGER, -1)
+    into l_raw_full_name,l_buf_full_name,l_prc_exec_full_name, l_raw_loop_query, l_attempt, l_param_skip
     from (select raw_full_name,
                  buf_full_name,
                  prc_exec_full_name,
@@ -460,7 +470,7 @@ begin
         loop
             /* process the result row */
             l_error_message := NULL;
-            l_processed_status := NULL;
+            l_processed_status := l_param_skip;
 
             call ${schemaName}.prc_pre_process(c_raw_rec.id, l_raw_full_name, l_buf_full_name,
                                                a_f_group_id, l_processed_status, l_error_message, l_buf_id);

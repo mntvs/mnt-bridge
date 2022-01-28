@@ -35,11 +35,16 @@ public abstract class ContainerUnit {
 
 
     public String attemptTestParam;
+    public String skipTestParam;
 
     @Getter
     protected BridgeContext bridgeContext;
     @Getter
     protected BridgeContext bridgeContextAttempt;
+
+    @Getter
+    protected BridgeContext bridgeContextSkip;
+
 
     public String wrapCodeBlock(String codeBlock) { return codeBlock; }
 

@@ -68,18 +68,18 @@ public class RawLoopRepoImpl implements RawLoopRepo {
     }
 
     Integer findParamInteger(Map<String, Object> params, String paraName) {
-        Object paramAttempt = params.get(paraName);
+        Object param = params.get(paraName);
         final String paramMessage = "parameter '";
-        if (paramAttempt == null)
-            throw new RawLoopRepoException(paramMessage + ParamEnum.ATTEMPT.name() + "' is not defined");
+        if (param == null)
+            throw new RawLoopRepoException(paramMessage + paraName + "' is not defined");
 
-        if (paramAttempt instanceof String)
-            return Integer.valueOf(String.valueOf(paramAttempt));
+        if (param instanceof String)
+            return Integer.valueOf(String.valueOf(param));
 
-        if (!(paramAttempt instanceof Integer))
-            throw new RawLoopRepoException(paramMessage + ParamEnum.ATTEMPT.name() + "' must be Integer");
+        if (!(param instanceof Integer))
+            throw new RawLoopRepoException(paramMessage + paraName + "' must be Integer");
 
-        return (Integer) paramAttempt;
+        return (Integer) param;
     }
 
     /**
@@ -101,6 +101,7 @@ public class RawLoopRepoImpl implements RawLoopRepo {
         String rawLoopQuery = findRawLoopQuery(localParam, rawId, groupId, metaData.getRawFullName());
 
         int paramAttempt = findParamInteger(localParam, ParamEnum.ATTEMPT.name());
+        int paramSkip = findParamInteger(localParam, ParamEnum.SKIP.name());
 
         try (PreparedStatement stmt = connection.prepareStatement(rawLoopQuery)) {
             if (rawId != null)
@@ -110,7 +111,7 @@ public class RawLoopRepoImpl implements RawLoopRepo {
 
             try (ResultSet rs = stmt.executeQuery()) {
                 while (rs.next()) {
-                    Integer processedStatus = 0;
+                    Integer processedStatus = paramSkip;
                     String errorMessage = null;
                     ProcessData processData = new ProcessData();
                     processData.setRawId(rs.getLong("id"));

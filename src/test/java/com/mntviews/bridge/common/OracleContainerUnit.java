@@ -21,14 +21,11 @@ public class OracleContainerUnit extends ContainerUnit {
     public final static String USER_NAME = "mnt_bridge";
     public final static String USER_PASSWORD = "mnt_bridge";
 
-
-//    @Container
-//    protected OracleContainer  oracleContainer = new OracleContainer("oracle/database_prebuild:18.4.0-xe").withUsername("system").withPassword("master").withReuse(true);
-
     public OracleContainerUnit() {
 
         connectionData = new ConnectionData(DB_URL, USER_NAME, USER_PASSWORD, BridgeContext.DEFAULT_SCHEMA_NAME);
         attemptTestParam = "<PARAM><ORDER>LIFO</ORDER><ATTEMPT>2</ATTEMPT></PARAM>";
+        skipTestParam = "<PARAM><ORDER>LIFO</ORDER><ATTEMPT>-1</ATTEMPT><SKIP>1</SKIP></PARAM>";
         bridgeContext = BridgeContext
                 .custom(GROUP_TAG, META_TAG, connectionData)
                 .withAfterProcessing((connection, processData) -> {
@@ -42,6 +39,18 @@ public class OracleContainerUnit extends ContainerUnit {
         Map<String, Object> param = new HashMap<>();
         param.put(ParamEnum.ATTEMPT.name(), 2);
         bridgeContextAttempt = BridgeContext
+                .custom(GROUP_TAG, META_TAG, connectionData)
+                .withAfterProcessing((connection, processData) -> {
+                    throw new RuntimeException(TEST_EXCEPTION_TEXT);
+                })
+                .withParam(param)
+                .withSchemaName(SCHEMA_NAME)
+                .withDataBaseType(DataBaseType.ORACLE)
+                .build();
+
+        param = new HashMap<>();
+        param.put(ParamEnum.SKIP.name(), 1);
+        bridgeContextSkip = BridgeContext
                 .custom(GROUP_TAG, META_TAG, connectionData)
                 .withAfterProcessing((connection, processData) -> {
                     throw new RuntimeException(TEST_EXCEPTION_TEXT);
