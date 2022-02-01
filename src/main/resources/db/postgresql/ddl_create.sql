@@ -339,9 +339,9 @@ begin
                     a_processed_status := 5; -- Skipped
                 end if;
             else
-                a_buf_id := l_buf_id;
                 a_processed_status := 1; -- Success
             end if;
+            a_buf_id := l_buf_id;
         else
             a_processed_status := 5; -- Skipped
         end if;

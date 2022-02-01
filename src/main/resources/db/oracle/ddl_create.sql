@@ -521,6 +521,7 @@ as
     l_raw_f_payload CLOB;
     l_raw_f_date    DATE;
     l_count         NUMBER;
+    l_attempt NUMBER :=10;
 begin
     a_buf_id := null;
 
@@ -530,11 +531,25 @@ begin
         into l_raw_id,l_raw_f_id,l_raw_f_payload,l_raw_f_date
         using a_raw_id;
 
+    loop
+        if l_attempt=0 then
+            raise_application_error(-20803, 'Dup val on index FBI_BUF_TEST_META_F_ID_INDEX. Attempts exceeded.');
+        end if;
+    begin
     execute immediate 'merge into ' || a_buf_full_name ||
                       ' a using (select :1 as raw_id, :2 raw_f_id, :3 raw_f_payload, :4 f_date, :5 f_group_id from dual) b on (a.f_id = b.raw_f_id) when not matched then ' ||
                       'insert (f_raw_id,f_id, f_payload, f_date, s_counter, f_group_id) values (b.raw_id, b.raw_f_id, b.raw_f_payload, b.f_date, 1, b.f_group_id) when matched then ' ||
                       'update set a.f_raw_id=b.raw_id,a.f_payload=b.raw_f_payload,a.f_date=b.f_date, s_counter=s_counter+1, a.f_group_id=b.f_group_id where :6>a.f_date OR (:7=a.f_date AND :8>=a.f_raw_id)' using
         l_raw_id,l_raw_f_id,l_raw_f_payload, l_raw_f_date, a_f_group_id,l_raw_f_date,l_raw_f_date, l_raw_id;
+        exit;
+    exception when DUP_VAL_ON_INDEX then
+        if not sqlerrm like '%FBI_BUF_TEST_META_F_ID_INDEX%' then
+            raise_application_error(-20804, sqlerrm);
+        end if;
+        l_attempt:=l_attempt - 1;
+    end;
+
+    end loop;
 
     if SQL%ROWCOUNT > 0 then
         if a_processed_status = 1 then
@@ -546,9 +561,9 @@ begin
                 a_processed_status := 5; -- Skipped
             end if;
         else
-            execute immediate 'select id from ' || a_buf_full_name || ' where f_id=:1' into a_buf_id using l_raw_f_id;
             a_processed_status := 1; -- Success
         end if;
+        execute immediate 'select id from ' || a_buf_full_name || ' where f_id=:1' into a_buf_id using l_raw_f_id;
     else
         a_processed_status := 5; -- Skipped
     end if;
