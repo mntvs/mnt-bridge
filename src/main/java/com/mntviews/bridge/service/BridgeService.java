@@ -9,11 +9,11 @@ import java.util.Map;
 
 public interface BridgeService {
 
-    void execute(MetaData metaData, Connection connection, BridgeProcessing beforeProcessing, BridgeProcessing afterProcessing, String schemaName, Map<String, Object> param);
+    void execute(MetaData metaData, BridgeContext bridgeContext, BridgeProcessing beforeProcessing, BridgeProcessing afterProcessing, String schemaName, Map<String, Object> param);
 
-    void executeOne(MetaData metaData, Connection connection, BridgeProcessing beforeProcessing, BridgeProcessing afterProcessing, String schemaName, Long rawId, Map<String, Object> param);
+    void executeOne(MetaData metaData, BridgeContext bridgeContext, BridgeProcessing beforeProcessing, BridgeProcessing afterProcessing, String schemaName, Long rawId, Map<String, Object> param);
 
-    void executeGroup(MetaData metaData, Connection connection, BridgeProcessing beforeProcessing, BridgeProcessing afterProcessing, String schemaName, String groupId, Map<String, Object> param);
+    void executeGroup(MetaData metaData, BridgeContext bridgeContext, BridgeProcessing beforeProcessing, BridgeProcessing afterProcessing, String schemaName, String groupId, Map<String, Object> param);
 
     MetaData findMetaData(String groupTag, String metaTag, Connection connection, String schemaName);
 

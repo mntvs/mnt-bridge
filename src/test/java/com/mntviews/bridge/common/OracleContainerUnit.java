@@ -28,7 +28,7 @@ public class OracleContainerUnit extends ContainerUnit {
         skipTestParam = "<PARAM><ORDER>LIFO</ORDER><ATTEMPT>-1</ATTEMPT><SKIP>1</SKIP></PARAM>";
         bridgeContext = BridgeContext
                 .custom(GROUP_TAG, META_TAG, connectionData)
-                .withAfterProcessing((connection, processData) -> {
+                .withAfterProcessing((connection, processData, context) -> {
                     if (processData.getRawId() % 2 == 0)
                         throw new RuntimeException(TEST_EXCEPTION_TEXT);
                 })
@@ -40,7 +40,7 @@ public class OracleContainerUnit extends ContainerUnit {
         param.put(ParamEnum.ATTEMPT.name(), 2);
         bridgeContextAttempt = BridgeContext
                 .custom(GROUP_TAG, META_TAG, connectionData)
-                .withAfterProcessing((connection, processData) -> {
+                .withAfterProcessing((connection, processData, context) -> {
                     throw new RuntimeException(TEST_EXCEPTION_TEXT);
                 })
                 .withParam(param)
@@ -52,7 +52,7 @@ public class OracleContainerUnit extends ContainerUnit {
         param.put(ParamEnum.SKIP.name(), 1);
         bridgeContextSkip = BridgeContext
                 .custom(GROUP_TAG, META_TAG, connectionData)
-                .withAfterProcessing((connection, processData) -> {
+                .withAfterProcessing((connection, processData, context) -> {
                     throw new RuntimeException(TEST_EXCEPTION_TEXT);
                 })
                 .withParam(param)

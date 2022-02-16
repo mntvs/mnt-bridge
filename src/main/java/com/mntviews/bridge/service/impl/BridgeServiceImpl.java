@@ -7,6 +7,7 @@ import com.mntviews.bridge.repository.BufRepo;
 import com.mntviews.bridge.repository.MetaDataRepo;
 import com.mntviews.bridge.repository.RawLoopRepo;
 import com.mntviews.bridge.repository.RawRepo;
+import com.mntviews.bridge.service.BridgeContext;
 import com.mntviews.bridge.service.BridgeProcessing;
 import com.mntviews.bridge.service.BridgeService;
 import lombok.RequiredArgsConstructor;
@@ -23,18 +24,18 @@ public class BridgeServiceImpl implements BridgeService {
     private final BufRepo bufRepo;
 
     @Override
-    public void execute(MetaData metaData, Connection connection, BridgeProcessing beforeProcessing, BridgeProcessing afterProcessing, String schemaName, Map<String, Object> param) {
-        rawLoopRepo.rawLoop(connection, metaData, beforeProcessing, afterProcessing, schemaName, null, null, param);
+    public void execute(MetaData metaData, BridgeContext bridgeContext, BridgeProcessing beforeProcessing, BridgeProcessing afterProcessing, String schemaName, Map<String, Object> param) {
+        rawLoopRepo.rawLoop(bridgeContext, metaData, beforeProcessing, afterProcessing, schemaName, null, null, param);
     }
 
     @Override
-    public void executeOne(MetaData metaData, Connection connection, BridgeProcessing beforeProcessing, BridgeProcessing afterProcessing, String schemaName, Long rawId, Map<String, Object> param) {
-        rawLoopRepo.rawLoop(connection, metaData, beforeProcessing, afterProcessing, schemaName, rawId, null, param);
+    public void executeOne(MetaData metaData, BridgeContext bridgeContext, BridgeProcessing beforeProcessing, BridgeProcessing afterProcessing, String schemaName, Long rawId, Map<String, Object> param) {
+        rawLoopRepo.rawLoop(bridgeContext, metaData, beforeProcessing, afterProcessing, schemaName, rawId, null, param);
     }
 
     @Override
-    public void executeGroup(MetaData metaData, Connection connection, BridgeProcessing beforeProcessing, BridgeProcessing afterProcessing, String schemaName, String groupId, Map<String, Object> param) {
-        rawLoopRepo.rawLoop(connection, metaData, beforeProcessing, afterProcessing, schemaName, null, groupId, param);
+    public void executeGroup(MetaData metaData, BridgeContext bridgeContext, BridgeProcessing beforeProcessing, BridgeProcessing afterProcessing, String schemaName, String groupId, Map<String, Object> param) {
+        rawLoopRepo.rawLoop(bridgeContext, metaData, beforeProcessing, afterProcessing, schemaName, null, groupId, param);
     }
 
     @Override

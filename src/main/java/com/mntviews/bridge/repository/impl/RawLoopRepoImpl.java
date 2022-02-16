@@ -7,6 +7,7 @@ import com.mntviews.bridge.repository.exception.PostProcessRepoException;
 import com.mntviews.bridge.repository.exception.PreProcessRepoException;
 import com.mntviews.bridge.repository.exception.RawLoopRepoException;
 import com.mntviews.bridge.repository.exception.UnrepeatableStatusException;
+import com.mntviews.bridge.service.BridgeContext;
 import com.mntviews.bridge.service.BridgeProcessing;
 import com.mntviews.bridge.service.BridgeUtil;
 import com.mntviews.bridge.service.ParamEnum;
@@ -19,10 +20,10 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class RawLoopRepoImpl implements RawLoopRepo {
 
-    private void process(ProcessData processData, BridgeProcessing bridgeProcessing, Connection connection) {
+    private void process(ProcessData processData, BridgeProcessing bridgeProcessing, Connection connection, BridgeContext bridgeContext) {
         try {
             if (bridgeProcessing != null)
-                bridgeProcessing.process(connection, processData);
+                bridgeProcessing.process(connection, processData, bridgeContext);
         } catch (UnrepeatableStatusException e) {
             processData.setProcessedStatus(BridgeUtil.STATUS_ERROR_UNREPEATABLE);
             processData.setErrorMessage(e.getMessage());
@@ -84,16 +85,16 @@ public class RawLoopRepoImpl implements RawLoopRepo {
 
     /**
      * Main loop to process raw queue
-     *
-     * @param connection       opened connection with db
+     *  @param connection       opened connection with db
      * @param metaData         system data received from db
      * @param beforeProcessing outer procedure to process current raw before db process
      * @param schemaName       schema name for system system objects
      * @param rawId
      * @param param
+     * @param bridgeContext
      */
     @Override
-    public void rawLoop(Connection connection, MetaData metaData, BridgeProcessing beforeProcessing, BridgeProcessing afterProcessing, String schemaName, Long rawId, String groupId, Map<String, Object> param) {
+    public void rawLoop(BridgeContext bridgeContext, MetaData metaData, BridgeProcessing beforeProcessing, BridgeProcessing afterProcessing, String schemaName, Long rawId, String groupId, Map<String, Object> param) {
 
         Map<String, Object> localParam = new HashMap<>(metaData.getParam());
         if (param != null)
@@ -102,6 +103,7 @@ public class RawLoopRepoImpl implements RawLoopRepo {
 
         int paramAttempt = findParamInteger(localParam, ParamEnum.ATTEMPT.name());
         int paramSkip = findParamInteger(localParam, ParamEnum.SKIP.name());
+        Connection connection =bridgeContext.findConnection();
 
         try (PreparedStatement stmt = connection.prepareStatement(rawLoopQuery)) {
             if (rawId != null)
@@ -122,12 +124,12 @@ public class RawLoopRepoImpl implements RawLoopRepo {
                     preProcess(connection, processData, schemaName);
 
                     if (processData.getProcessedStatus() == BridgeUtil.STATUS_SUCCESS) {
-                        process(processData, beforeProcessing, connection);
+                        process(processData, beforeProcessing, connection, bridgeContext);
                     }
                     if (processData.getProcessedStatus() == BridgeUtil.STATUS_SUCCESS)
                         process(connection, processData, schemaName);
                     if (processData.getProcessedStatus() == BridgeUtil.STATUS_SUCCESS) {
-                        process(processData, afterProcessing, connection);
+                        process(processData, afterProcessing, connection, bridgeContext);
                     }
                     if (processData.getProcessedStatus() != BridgeUtil.STATUS_SUCCESS)
                         connection.rollback();
@@ -140,6 +142,9 @@ public class RawLoopRepoImpl implements RawLoopRepo {
             }
         } catch (Exception e) {
             throw new RawLoopRepoException(e);
+        }
+        finally {
+            bridgeContext.closeConnection(connection);
         }
     }
 

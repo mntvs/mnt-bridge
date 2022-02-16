@@ -40,13 +40,13 @@ public class BridgeContextTest extends BaseInit {
 
     @Test
     public void executeBridgeContextTest() {
-        doNothing().when(bridgeService).execute(isA(MetaData.class), isNull(), isA(BridgeProcessing.class), isA(BridgeProcessing.class), isA(String.class), isNull());
+        doNothing().when(bridgeService).execute(isA(MetaData.class),  isA(BridgeContext.class), isA(BridgeProcessing.class), isA(BridgeProcessing.class), isA(String.class), isNull());
 
         BridgeContext bridgeContext = BridgeContext
                 .custom("GROUP_TAG", "META_TAG", new ConnectionData("URL", "USER_NAME", "PASSWORD", "DEFAULT_SCHEMA"))
-                .withAfterProcessing((connection, processData) -> {
+                .withAfterProcessing((connection, processData, bridgeContext1) -> {
                 })
-                .withBeforeProcessing((connection, processData) -> {
+                .withBeforeProcessing((connection, processData, bridgeContext1) -> {
                 })
                 .withBridgeService(bridgeService)
                 .withDataBaseType(DataBaseType.TEST)

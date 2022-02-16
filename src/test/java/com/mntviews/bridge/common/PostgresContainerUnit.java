@@ -26,7 +26,7 @@ public class PostgresContainerUnit extends ContainerUnit {
         skipTestParam = "{\"ORDER\": \"LIFO\",\"ATTEMPT\": -1,\"SKIP\": 1}";
         bridgeContext = BridgeContext
                 .custom(GROUP_TAG, META_TAG, connectionData)
-                .withAfterProcessing((connection, processData) -> {
+                .withAfterProcessing((connection, processData, context) -> {
                     if (processData.getRawId() % 2 == 0)
                         throw new RuntimeException(TEST_EXCEPTION_TEXT);
                 })
@@ -38,7 +38,7 @@ public class PostgresContainerUnit extends ContainerUnit {
         param.put(ParamEnum.ATTEMPT.name(), 2);
         bridgeContextAttempt = BridgeContext
                 .custom(GROUP_TAG, META_TAG, connectionData)
-                .withAfterProcessing((connection, processData) -> {
+                .withAfterProcessing((connection, processData, context) -> {
                     throw new RuntimeException(TEST_EXCEPTION_TEXT);
                 })
                 .withParam(param)
@@ -50,7 +50,7 @@ public class PostgresContainerUnit extends ContainerUnit {
         param.put(ParamEnum.SKIP.name(), 1);
         bridgeContextSkip = BridgeContext
                 .custom(GROUP_TAG, META_TAG, connectionData)
-                .withAfterProcessing((connection, processData) -> {
+                .withAfterProcessing((connection, processData, context) -> {
                     throw new RuntimeException(TEST_EXCEPTION_TEXT);
                 })
                 .withParam(param)

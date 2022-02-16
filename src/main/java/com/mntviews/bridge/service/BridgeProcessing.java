@@ -5,5 +5,5 @@ import com.mntviews.bridge.model.ProcessData;
 import java.sql.Connection;
 
 public interface BridgeProcessing {
-    void process(Connection connection,ProcessData processData);
+    void process(Connection connection,ProcessData processData, BridgeContext bridgeContext);
 }

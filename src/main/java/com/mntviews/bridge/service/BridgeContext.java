@@ -83,42 +83,22 @@ public class BridgeContext implements Bridge {
     }
 
     @Override
-    public void execute(Connection connection) {
-        bridgeService.execute(metaData, connection, bridgeBeforeProcessing, bridgeAfterProcessing, connectionData.getSchemaName(), param);
-    }
-
-    @Override
     public void execute() {
         checkMetaData();
-        Connection connection = findConnection();
-        execute(connection);
-        closeConnection(connection);
-    }
-
-    @Override
-    public void executeOne(Long rawId, Connection connection) {
-        bridgeService.executeOne(metaData, connection, bridgeBeforeProcessing, bridgeAfterProcessing, connectionData.getSchemaName(), rawId, param);
+        bridgeService.execute(metaData, this, bridgeBeforeProcessing, bridgeAfterProcessing, connectionData.getSchemaName(), param);
     }
 
     @Override
     public void executeOne(Long rawId) {
         checkMetaData();
-        Connection connection = findConnection();
-        executeOne(rawId, connection);
-        closeConnection(connection);
-    }
-
-    @Override
-    public void executeGroup(String groupId, Connection connection) {
-        bridgeService.executeGroup(metaData, connection, bridgeBeforeProcessing, bridgeAfterProcessing, connectionData.getSchemaName(), groupId, param);
+        bridgeService.executeOne(metaData, this, bridgeBeforeProcessing, bridgeAfterProcessing, connectionData.getSchemaName(), rawId, param);
     }
 
     @Override
     public void executeGroup(String groupId) {
         checkMetaData();
-        Connection connection = findConnection();
-        executeGroup(groupId, connection);
-        closeConnection(connection);
+        bridgeService.executeGroup(metaData, this, bridgeBeforeProcessing, bridgeAfterProcessing, connectionData.getSchemaName(), groupId, param);
+
     }
 
     @Override

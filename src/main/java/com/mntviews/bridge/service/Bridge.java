@@ -38,15 +38,9 @@ public interface Bridge {
 
     String getSchemaName();
 
-    void execute(Connection connection);
-
     void execute();
 
-    void executeOne(Long rawId, Connection connection);
-
     void executeOne(Long rawId);
-
-    void executeGroup(String groupId, Connection connection);
 
     void executeGroup(String groupId);
 

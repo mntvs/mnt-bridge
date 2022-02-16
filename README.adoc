@@ -44,3 +44,14 @@ Currently supports PostgreSQL and Oracle databases.
         bridgeContext.init(); // initialization of queue objects
         bridgeContext.execute(); // process queue
 ----
+
+
+.Initializes database schema and creates db objects for queue
+[source,plsql]
+----
+BEGIN
+    prc_create_meta_by_tag('TEST_GROUP','TEST_META','SCHEMA_USER');
+    insert into
+    prc_start_task('TEST_GROUP','TEST_META');
+END;
+----
